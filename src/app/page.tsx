@@ -3,6 +3,8 @@ import { Bodoni_Moda } from "next/font/google";
 import { CursorTrace } from "@/components/landing/cursor-trace";
 import { AiEdgeGlow } from "@/components/ui/ai-edge-glow";
 import { Layers, Network, Scale } from "lucide-react";
+import { createSupabaseServerClient } from "@/lib/supabase";
+import { continueWithoutAccountAction } from "@/app/auth/actions";
 
 const bodoni = Bodoni_Moda({
   subsets: ["latin"],
@@ -10,7 +12,10 @@ const bodoni = Bodoni_Moda({
   weight: ["400"],
 });
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden text-[#ecf1ff]">
       <AiEdgeGlow />
@@ -59,18 +64,31 @@ export default function Home() {
           </div>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
-          <Link
-            href="/auth/sign-in"
-            className="rounded-full border border-[#8eb3ff] bg-[linear-gradient(120deg,#6ea2ff,#8195ff)] px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_35px_rgba(64,113,255,0.35)] transition hover:translate-y-[-1px] hover:brightness-110"
-          >
-            Enter Studio
-          </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-full border border-[var(--border)] bg-[rgba(186,207,255,0.08)] px-6 py-3 text-sm font-semibold text-[#d9e5ff] backdrop-blur-md transition hover:bg-[rgba(186,207,255,0.16)]"
-          >
-            Go To Dashboard
-          </Link>
+          {user && !user.is_anonymous ? (
+            <Link
+              href="/dashboard"
+              className="rounded-full border border-[#8eb3ff] bg-[linear-gradient(120deg,#6ea2ff,#8195ff)] px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_35px_rgba(64,113,255,0.35)] transition hover:translate-y-[-1px] hover:brightness-110"
+            >
+              Go To Dashboard
+            </Link>
+          ) : (
+            <>
+              <form action={continueWithoutAccountAction}>
+                <button
+                  type="submit"
+                  className="rounded-full border border-[var(--border)] bg-[rgba(186,207,255,0.08)] px-6 py-3 text-sm font-semibold text-[#d9e5ff] backdrop-blur-md transition hover:bg-[rgba(186,207,255,0.16)]"
+                >
+                  Continue without account
+                </button>
+              </form>
+              <Link
+                href="/auth/sign-up"
+                className="rounded-full border border-[#8eb3ff] bg-[linear-gradient(120deg,#6ea2ff,#8195ff)] px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_35px_rgba(64,113,255,0.35)] transition hover:translate-y-[-1px] hover:brightness-110"
+              >
+                Create Account
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </main>

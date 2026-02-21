@@ -156,6 +156,7 @@ type Props = {
   system: SystemRow;
   nodes: NodeRow[];
   edges: EdgeRow[];
+  isGuest?: boolean;
 };
 
 
@@ -201,7 +202,7 @@ function TierBackgrounds() {
   );
 }
 
-function CanvasInner({ system, nodes, edges }: Props) {
+function CanvasInner({ system, nodes, edges, isGuest }: Props) {
   const store = useCanvasStore();
   const actions = useCanvasActions();
 
@@ -301,6 +302,13 @@ function CanvasInner({ system, nodes, edges }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
+            {isGuest && (
+              <Link href="/auth/sign-up">
+                <Button type="button" variant="glass" className="border-warning/50 text-warning hover:bg-warning/20">
+                  Create Account
+                </Button>
+              </Link>
+            )}
             <Button
               type="button"
               variant="glass"
@@ -337,6 +345,13 @@ function CanvasInner({ system, nodes, edges }: Props) {
             <button className="absolute top-2 right-2 text-white/50 hover:text-white" onClick={() => store.setError(null)}>✕</button>
           </div>
         ) : null}
+
+        {isGuest && (
+          <div className="absolute left-1/2 -translate-x-1/2 top-24 z-20 flex flex-col items-center max-w-[500px] animate-in slide-in-from-top-4 fade-in rounded-lg border border-warning/50 bg-warning/20 px-4 py-3 shadow-glow shadow-warning/40 backdrop-blur-md text-sm text-white">
+            <span className="font-semibold text-warning/90 mb-1">Guest Mode</span>
+            <span className="text-center text-white/80">You are using a temporary guest account. Your system will not be perfectly saved unless you create an account.</span>
+          </div>
+        )}
 
         {/* Dynamic Canvas Tier Backgrounds rendered inside ReactFlowProvider */}
         <TierBackgrounds />

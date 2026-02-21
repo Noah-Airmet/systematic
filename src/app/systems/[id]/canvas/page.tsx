@@ -40,9 +40,11 @@ export default async function CanvasPage({ params }: { params: Promise<{ id: str
     );
   }
 
+  const isGuest = user?.is_anonymous ?? false;
+
   return (
     <main className="h-screen">
-      <SystemCanvas system={system} nodes={applyFoundationalLayout(currentNodes, tiers)} edges={edges ?? []} />
+      <SystemCanvas isGuest={isGuest} system={system} nodes={applyFoundationalLayout(currentNodes, tiers)} edges={edges ?? []} />
     </main>
   );
 }

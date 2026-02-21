@@ -4,6 +4,9 @@ import { randomUUID } from "node:crypto";
 import { createSupabaseServerClient } from "@/lib/supabase";
 import { createSupabaseAdminClient } from "@/lib/supabase";
 import { redirect } from "next/navigation";
+import { DEFAULT_PRESUPPOSITIONS, FOUNDATIONAL_NODES } from "@/lib/constants";
+import { foundationPosition } from "@/lib/foundation-layout";
+import { defaultSystemTiers, FOUNDATIONAL_TIER_ID } from "@/lib/tiers";
 
 export async function signInAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
@@ -23,9 +26,25 @@ export async function signUpAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase.auth.signUp({ email, password });
-  if (error) {
-    redirect(`/auth/sign-up?error=${encodeURIComponent(error.message)}`);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  let authError;
+
+  if (user?.is_anonymous) {
+    const { error } = await supabase.auth.updateUser({ email, password });
+    authError = error;
+  } else {
+    const { error } = await supabase.auth.signUp({ email, password });
+    authError = error;
+  }
+
+  if (authError) {
+    redirect(`/auth/sign-up?error=${encodeURIComponent(authError.message)}`);
+  }
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    redirect("/auth/sign-up?message=We've+sent+a+confirmation+link+to+your+email.+Please+check+your+inbox+to+activate+your+account.");
   }
 
   redirect("/dashboard");
@@ -38,34 +57,43 @@ export async function signOutAction() {
 }
 
 export async function continueWithoutAccountAction() {
-  if (process.env.NODE_ENV === "production") {
-    redirect("/auth/sign-in?error=Guest+mode+is+disabled+in+production");
-  }
-
-  const email = `guest-${randomUUID()}@systematic.local`;
-  const password = `Guest-${randomUUID()}-A1!`;
-
-  const admin = createSupabaseAdminClient();
-  const { error: createError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { guest: true },
-  });
-
-  if (createError) {
-    redirect(`/auth/sign-in?error=${encodeURIComponent(createError.message)}`);
-  }
-
   const supabase = await createSupabaseServerClient();
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } = await supabase.auth.signInAnonymously();
 
-  if (signInError) {
-    redirect(`/auth/sign-in?error=${encodeURIComponent(signInError.message)}`);
+  if (error || !data.user) {
+    redirect(`/auth/sign-in?error=${encodeURIComponent(error?.message ?? "Failed to sign in as guest")}`);
   }
 
-  redirect("/dashboard");
+  const { data: system, error: insertError } = await supabase
+    .from("systems")
+    .insert({
+      user_id: data.user.id,
+      title: "Untitled System",
+      presuppositions: DEFAULT_PRESUPPOSITIONS,
+      tiers: defaultSystemTiers(),
+    })
+    .select("*")
+    .single();
+
+  if (insertError || !system) {
+    redirect(`/auth/sign-in?error=${encodeURIComponent(insertError?.message ?? "Failed to create guest system")}`);
+  }
+
+  const seeded = FOUNDATIONAL_NODES.map((title, idx) => {
+    const pos = foundationPosition(idx, FOUNDATIONAL_NODES.length, defaultSystemTiers());
+    return {
+      system_id: system.id,
+      tier_id: FOUNDATIONAL_TIER_ID,
+      title,
+      description: "",
+      notes: "",
+      is_locked: true,
+      x_position: pos.x,
+      y_position: pos.y,
+    };
+  });
+
+  await supabase.from("nodes").insert(seeded);
+
+  redirect(`/systems/${system.id}/templates`);
 }
