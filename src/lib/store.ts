@@ -9,7 +9,7 @@ import {
     applyEdgeChanges,
     addEdge as rfAddEdge,
 } from "reactflow";
-import { EdgeRow, NodeRow, RelationshipType, SystemTier } from "./types";
+import { DefinitionRow, EdgeRow, InferenceType, NodeRow, RelationshipType, SystemTier, Presuppositions } from "./types";
 import { FOUNDATIONAL_TIER_ID } from "./tiers";
 
 export type CanvasNodeData = {
@@ -23,6 +23,14 @@ export type CanvasNodeData = {
     tags: string[] | null;
     validation_status: string | null;
     validation_critique: string | null;
+    // Toulmin argument fields
+    grounds: string;
+    warrant: string;
+    backing: string;
+    qualifier: "necessarily" | "probably" | "presumably" | "possibly" | "in_most_cases" | null;
+    rebuttal: string;
+    // Epistemic sources
+    epistemic_sources: string[];
 };
 
 export type CanvasState = {
@@ -32,6 +40,8 @@ export type CanvasState = {
     tiers: SystemTier[];
     nodes: Node<CanvasNodeData>[];
     edges: Edge[];
+    definitions: DefinitionRow[];
+    presuppositions: Presuppositions;
 
     // UI State
     saveState: string;
@@ -39,21 +49,31 @@ export type CanvasState = {
     selectedNodeId: string | null;
     pendingConnection: Connection | null;
     relationshipType: RelationshipType;
+    inferenceType: InferenceType | null;
     draggingTierId: string | null;
     inspectorOpen: boolean;
-    showTensionMap: boolean;
+    sidebarWidth: number;
+    sidebarCollapsed: boolean;
 
     // Actions
-    init: (systemId: string, title: string, initialTiers: SystemTier[], initialNodes: Node<CanvasNodeData>[], initialEdges: Edge[]) => void;
+    init: (systemId: string, title: string, initialTiers: SystemTier[], initialNodes: Node<CanvasNodeData>[], initialEdges: Edge[], presuppositions: Presuppositions) => void;
     setTiers: (tiers: SystemTier[]) => void;
     setSaveState: (state: string) => void;
     setError: (error: string | null) => void;
     setSelectedNodeId: (id: string | null) => void;
     setPendingConnection: (conn: Connection | null) => void;
     setRelationshipType: (type: RelationshipType) => void;
+    setInferenceType: (type: InferenceType | null) => void;
     setDraggingTierId: (id: string | null) => void;
     setInspectorOpen: (open: boolean) => void;
-    setShowTensionMap: (show: boolean) => void;
+    setSidebarWidth: (width: number) => void;
+    setSidebarCollapsed: (collapsed: boolean) => void;
+
+    // Definitions
+    setDefinitions: (definitions: DefinitionRow[]) => void;
+    addDefinition: (definition: DefinitionRow) => void;
+    updateDefinition: (id: string, data: Partial<DefinitionRow>) => void;
+    removeDefinition: (id: string) => void;
 
     // React Flow handlers
     onNodesChange: (changes: NodeChange[]) => void;
@@ -64,6 +84,7 @@ export type CanvasState = {
     updateNodeData: (id: string, data: Partial<CanvasNodeData>) => void;
     removeNode: (id: string) => void;
     addEdge: (edge: Edge) => void;
+    updateEdgeData: (id: string, data: Record<string, unknown>) => void;
     removeEdge: (id: string) => void;
 };
 
@@ -72,7 +93,7 @@ export function toFlowNodes(rows: NodeRow[], _tiers?: SystemTier[]): Node<Canvas
         id: node.id,
         type: node.tier_id === FOUNDATIONAL_TIER_ID ? "foundation" : "doctrine",
         position: { x: node.x_position, y: node.y_position },
-        draggable: node.tier_id !== FOUNDATIONAL_TIER_ID,
+        draggable: true,
         data: {
             title: node.title,
             description: node.description,
@@ -84,6 +105,12 @@ export function toFlowNodes(rows: NodeRow[], _tiers?: SystemTier[]): Node<Canvas
             tags: node.tags,
             validation_status: node.validation_status,
             validation_critique: node.validation_critique,
+            grounds: node.grounds ?? "",
+            warrant: node.warrant ?? "",
+            backing: node.backing ?? "",
+            qualifier: node.qualifier ?? null,
+            rebuttal: node.rebuttal ?? "",
+            epistemic_sources: node.epistemic_sources ?? [],
         },
     }));
 }
@@ -93,8 +120,13 @@ export function toFlowEdges(rows: EdgeRow[]): Edge[] {
         id: edge.id,
         source: edge.source_node_id,
         target: edge.target_node_id,
-        label: edge.relationship_type,
-        data: { relationship_type: edge.relationship_type },
+        label: edge.inference_type
+            ? `${edge.relationship_type} · ${edge.inference_type}`
+            : edge.relationship_type,
+        data: {
+            relationship_type: edge.relationship_type,
+            inference_type: edge.inference_type,
+        },
     }));
 }
 
@@ -104,21 +136,26 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     tiers: [],
     nodes: [],
     edges: [],
+    definitions: [],
+    presuppositions: {},
     saveState: "Saved",
     error: null,
     selectedNodeId: null,
     pendingConnection: null,
     relationshipType: "supports",
+    inferenceType: null,
     draggingTierId: null,
     inspectorOpen: false,
-    showTensionMap: false,
+    sidebarWidth: 280,
+    sidebarCollapsed: false,
 
-    init: (systemId, title, initialTiers, initialNodes, initialEdges) => set({
+    init: (systemId, title, initialTiers, initialNodes, initialEdges, presuppositions) => set({
         systemId,
         systemTitle: title,
         tiers: initialTiers,
         nodes: initialNodes,
-        edges: initialEdges
+        edges: initialEdges,
+        presuppositions
     }),
 
     setTiers: (tiers) => set({ tiers }),
@@ -127,9 +164,19 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     setSelectedNodeId: (selectedNodeId) => set({ selectedNodeId }),
     setPendingConnection: (pendingConnection) => set({ pendingConnection }),
     setRelationshipType: (relationshipType) => set({ relationshipType }),
+    setInferenceType: (inferenceType) => set({ inferenceType }),
     setDraggingTierId: (draggingTierId) => set({ draggingTierId }),
     setInspectorOpen: (inspectorOpen) => set({ inspectorOpen }),
-    setShowTensionMap: (showTensionMap) => set({ showTensionMap }),
+    setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
+    setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+
+    // Definitions
+    setDefinitions: (definitions) => set({ definitions }),
+    addDefinition: (definition) => set({ definitions: [...get().definitions, definition] }),
+    updateDefinition: (id, data) => set({
+        definitions: get().definitions.map(d => d.id === id ? { ...d, ...data } : d)
+    }),
+    removeDefinition: (id) => set({ definitions: get().definitions.filter(d => d.id !== id) }),
 
     onNodesChange: (changes) => {
         set({ nodes: applyNodeChanges(changes, get().nodes) as Node<CanvasNodeData>[] });
@@ -148,5 +195,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         selectedNodeId: get().selectedNodeId === id ? null : get().selectedNodeId
     }),
     addEdge: (edge) => set({ edges: rfAddEdge(edge, get().edges) }),
+    updateEdgeData: (id, data) => set({
+        edges: get().edges.map(e => e.id === id ? { ...e, data: { ...e.data, ...data }, label: data.inference_type ? `${e.data?.relationship_type} · ${data.inference_type}` : e.data?.relationship_type } : e)
+    }),
     removeEdge: (id) => set({ edges: get().edges.filter(e => e.id !== id) })
 }));

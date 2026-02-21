@@ -2,7 +2,7 @@ import { NodeRow, SystemTier } from "@/lib/types";
 import { buildTierBands, FOUNDATIONAL_TIER_ID } from "@/lib/tiers";
 
 const FOUNDATION_MIN_X = 120;
-const FOUNDATION_MAX_X = 1080;
+const FOUNDATION_MAX_X = 1200;
 const FOUNDATION_NODE_WIDTH = 190;
 const FOUNDATION_NODE_HEIGHT = 90;
 const FOUNDATION_GAP_X = 18;

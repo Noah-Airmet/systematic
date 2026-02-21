@@ -28,14 +28,37 @@ export async function POST(request: Request) {
       return json({ error: "Invalid tier id for this system" }, { status: 400 });
     }
 
+    const d = parsed.data;
+    const insertPayload = {
+      system_id: d.system_id,
+      tier_id: d.tier_id,
+      title: d.title,
+      description: d.description ?? "",
+      notes: d.notes ?? "",
+      x_position: d.x_position,
+      y_position: d.y_position,
+      confidence: d.confidence ?? null,
+      scripture_refs: d.scripture_refs ?? null,
+      tags: d.tags ?? null,
+      grounds: d.grounds ?? "",
+      warrant: d.warrant ?? "",
+      backing: d.backing ?? "",
+      qualifier: d.qualifier ?? null,
+      rebuttal: d.rebuttal ?? "",
+      epistemic_sources: Array.isArray(d.epistemic_sources) ? d.epistemic_sources : [],
+    };
+
     const { data: node, error } = await supabase
       .from("nodes")
-      .insert(parsed.data)
+      .insert(insertPayload)
       .select("*")
       .single();
 
     if (error || !node) {
-      return json({ error: error?.message ?? "Failed to create node" }, { status: 500 });
+      return json(
+        { error: error?.message ?? "Failed to create node", details: error?.details },
+        { status: 500 }
+      );
     }
 
     track("node_created", { user_id: user.id, system_id: node.system_id });

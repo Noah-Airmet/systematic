@@ -36,22 +36,33 @@ export async function POST(request: Request) {
       );
     }
 
-    const [{ data: system }, { data: node }, { data: edges }] = await Promise.all([
+    // Fetch node with expanded fields, system, edges, and linked definitions in parallel
+    const [{ data: system }, { data: node }, { data: edges }, { data: nodeDefLinks }] = await Promise.all([
       supabase.from("systems").select("id,presuppositions").eq("id", body.system_id).single(),
       supabase
         .from("nodes")
-        .select("id,title,description,notes,tier_id")
+        .select("id,title,description,notes,tier_id,confidence,grounds,warrant,backing,qualifier,rebuttal,epistemic_sources")
         .eq("id", body.node_id)
         .single(),
       supabase
         .from("edges")
-        .select("source_node_id,target_node_id,relationship_type")
+        .select("source_node_id,target_node_id,relationship_type,inference_type")
         .eq("system_id", body.system_id),
+      supabase
+        .from("node_definitions")
+        .select("definition_id")
+        .eq("node_id", body.node_id),
     ]);
 
     if (!system || !node) {
       return json({ error: "Node or system not found" }, { status: 404 });
     }
+
+    // Fetch linked definitions
+    const defIds = (nodeDefLinks ?? []).map((l: { definition_id: string }) => l.definition_id);
+    const { data: linkedDefinitions } = defIds.length
+      ? await supabase.from("definitions").select("term,definition").in("id", defIds)
+      : { data: [] };
 
     const related = (edges ?? []).filter(
       (edge) => edge.source_node_id === node.id || edge.target_node_id === node.id,
@@ -67,7 +78,7 @@ export async function POST(request: Request) {
 
     const { data: neighborRows } = await supabase
       .from("nodes")
-      .select("id,title,description,notes,tier_id")
+      .select("id,title,description,notes,tier_id,confidence")
       .in("id", neighborIds);
 
     const neighbors = related
@@ -78,6 +89,7 @@ export async function POST(request: Request) {
         return {
           ...row,
           relationship_type: edge.relationship_type,
+          inference_type: edge.inference_type,
           direction: edge.source_node_id === node.id ? "outgoing" : "incoming",
         };
       })
@@ -87,7 +99,36 @@ export async function POST(request: Request) {
 
     track("validation_requested", { user_id: user.id, system_id: system.id });
 
-    const prompt = `You are a theological consistency assistant. Analyze the target node for internal coherence with its one-degree neighborhood and presuppositions.\n\nReturn strict JSON with keys: rating (consistent|warning|contradiction), critique (string).\n\nSystem ID: ${body.system_id}\nNode: ${JSON.stringify(node)}\nNeighbors: ${JSON.stringify(neighbors)}\nPresuppositions: ${JSON.stringify(presuppositions)}`;
+    // Build the Toulmin structure for the prompt
+    const toulmin = {
+      grounds: node.grounds || null,
+      warrant: node.warrant || null,
+      backing: node.backing || null,
+      qualifier: node.qualifier || null,
+      rebuttal: node.rebuttal || null,
+    };
+    const hasToulmin = Object.values(toulmin).some(v => v !== null && v !== "");
+
+    const prompt = `You are a philosophical theology assistant specializing in rigorous systematic theology within the Latter-day Saint tradition. Analyze the target node for:
+
+1. INTERNAL COHERENCE: Does this claim cohere with its connected neighbors and the user's presuppositions?
+2. ARGUMENT SOUNDNESS: ${hasToulmin ? "The user provided a Toulmin argument structure. Assess whether the reasoning is valid. Does the warrant actually connect the grounds to the claim? Is the backing sufficient?" : "No structured argument was provided. Note if one would strengthen the claim."}
+3. INFERENCE VALIDITY: Check that the inference types on connected edges match their actual logical strength. A "deductive" edge should represent a conclusion that necessarily follows. An "inductive" edge should represent a probabilistic conclusion.
+4. QUALIFIER-CONFIDENCE ALIGNMENT: ${node.qualifier && node.confidence ? `The user set qualifier "${node.qualifier}" and confidence "${node.confidence}". Flag any tension between these.` : "Check for any mismatch between stated argument strength and confidence level."}
+5. DEFINITIONAL CONSISTENCY: ${(linkedDefinitions ?? []).length > 0 ? "The user linked definitions to this node. Check whether the node's content uses those terms consistently." : "No definitions linked."}
+6. EPISTEMIC SOURCE ADEQUACY: ${(node.epistemic_sources ?? []).length > 0 ? `Sources claimed: ${(node.epistemic_sources ?? []).join(", ")}. Note if these seem insufficient for the tier "${node.tier_id}".` : "No epistemic sources specified."}
+
+Context:
+- Node: ${JSON.stringify({ id: node.id, title: node.title, description: node.description, notes: node.notes, tier_id: node.tier_id, confidence: node.confidence })}
+- Toulmin Structure: ${JSON.stringify(toulmin)}
+- Epistemic Sources: ${JSON.stringify(node.epistemic_sources ?? [])}
+- Linked Definitions: ${JSON.stringify(linkedDefinitions ?? [])}
+- Neighbors (with inference types): ${JSON.stringify(neighbors)}
+- User Presuppositions: ${JSON.stringify(presuppositions)}
+
+Return strict JSON with keys: rating (consistent|warning|contradiction), critique (string — 2-4 sentences explaining the assessment, referencing specific Toulmin elements or definitional issues when relevant).
+
+Important: Reason from the user's own presuppositions, not from a default theological position. Identify traditional tensions rather than making normative theological claims.`;
 
     const result = await generateText({
       model: anthropic("claude-sonnet-4-20250514"),

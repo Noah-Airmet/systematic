@@ -6,6 +6,8 @@ import { FOUNDATIONAL_TIER_ID } from "@/lib/tiers";
 import { useCanvasStore, CanvasState } from "@/lib/store";
 import { SystemTier } from "@/lib/types";
 import { useCanvasActions } from "./use-canvas-actions";
+import { useState } from "react";
+import { X } from "lucide-react";
 
 import {
     DndContext,
@@ -25,7 +27,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import { GripVertical } from "lucide-react";
+import { ChevronLeft, GripVertical } from "lucide-react";
 
 function SortableTier({ tier, idx, isFoundation, store, actions }: { tier: SystemTier, idx: number, isFoundation: boolean, store: CanvasState, actions: ReturnType<typeof useCanvasActions> }) {
     const {
@@ -54,7 +56,7 @@ function SortableTier({ tier, idx, isFoundation, store, actions }: { tier: Syste
         >
             <div className="flex items-center gap-2">
                 <div
-                    className={`flex items-center justify-center p-1 rounded-md transition-colors ${!isFoundation ? 'cursor-grab active:cursor-grabbing hover:bg-white/10 text-muted/60 hover:text-foreground' : 'text-transparent'}`}
+                    className={`flex h-7 min-w-7 flex-shrink-0 items-center justify-center rounded-md transition-colors ${!isFoundation ? 'cursor-grab active:cursor-grabbing hover:bg-white/10 text-muted/60 hover:text-foreground' : 'text-transparent'}`}
                     {...(isFoundation ? {} : listeners)}
                     {...(isFoundation ? {} : attributes)}
                 >
@@ -87,6 +89,192 @@ function SortableTier({ tier, idx, isFoundation, store, actions }: { tier: Syste
                 <div className="type-small text-[10px] text-muted/60 absolute bottom-1 right-2 pointer-events-none">
                     Pinned Base
                 </div>
+            )}
+        </div>
+    );
+}
+
+function DefinitionsSection() {
+    const store = useCanvasStore();
+    const actions = useCanvasActions();
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [expandedDefinitionId, setExpandedDefinitionId] = useState<string | null>(null);
+    const [newTerm, setNewTerm] = useState("");
+    const [newDefinition, setNewDefinition] = useState("");
+    const [editingTerm, setEditingTerm] = useState("");
+    const [editingDefinition, setEditingDefinition] = useState("");
+    const [editingNotes, setEditingNotes] = useState("");
+
+    const handleAddDefinition = async () => {
+        if (newTerm.trim() && newDefinition.trim()) {
+            await actions.createDefinition(newTerm.trim(), newDefinition.trim());
+            setNewTerm("");
+            setNewDefinition("");
+            setShowAddForm(false);
+        }
+    };
+
+    const handleExpandDefinition = (defId: string) => {
+        const def = store.definitions?.find(d => d.id === defId);
+        if (def) {
+            setExpandedDefinitionId(defId);
+            setEditingTerm(def.term);
+            setEditingDefinition(def.definition);
+            setEditingNotes(def.notes || "");
+        }
+    };
+
+    const handleSaveEdit = async (defId: string) => {
+        await actions.patchDefinition(defId, {
+            term: editingTerm,
+            definition: editingDefinition,
+            notes: editingNotes,
+        });
+        setExpandedDefinitionId(null);
+        setEditingTerm("");
+        setEditingDefinition("");
+        setEditingNotes("");
+    };
+
+    const handleCancelEdit = () => {
+        setExpandedDefinitionId(null);
+        setEditingTerm("");
+        setEditingDefinition("");
+        setEditingNotes("");
+    };
+
+    const handleDeleteDefinition = async (defId: string) => {
+        await actions.deleteDefinition(defId);
+    };
+
+    const definitions = store.definitions || [];
+
+    return (
+        <div className="mt-8 pt-6 border-t border-border/30">
+            <div className="flex items-center justify-between mb-3">
+                <h3 className="type-label text-muted tracking-widest">Definitions</h3>
+                <Button
+                    type="button"
+                    variant="glass"
+                    onClick={() => setShowAddForm(!showAddForm)}
+                    className="h-6 px-2 text-xs"
+                >
+                    + Add
+                </Button>
+            </div>
+
+            {showAddForm && (
+                <div className="liquid-panel-strong rounded-lg p-3 mb-3 space-y-2">
+                    <Input
+                        placeholder="Term"
+                        value={newTerm}
+                        onChange={(e) => setNewTerm(e.target.value)}
+                        className="h-8 text-sm bg-black/20 border-border/50 focus:border-accent/50"
+                    />
+                    <textarea
+                        placeholder="Definition"
+                        value={newDefinition}
+                        onChange={(e) => setNewDefinition(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-md bg-black/20 border border-border/50 px-3 py-2 text-sm text-foreground placeholder:text-muted/50 focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/20 resize-none"
+                    />
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={handleAddDefinition}
+                            className="flex-1 h-7 text-xs bg-accent/10 text-accent border border-accent/20 hover:bg-accent hover:text-white transition-all"
+                        >
+                            Save
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="glass"
+                            onClick={() => {
+                                setShowAddForm(false);
+                                setNewTerm("");
+                                setNewDefinition("");
+                            }}
+                            className="flex-1 h-7 text-xs"
+                        >
+                            Cancel
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            <div className="space-y-2">
+                {definitions.map((def) => (
+                    <div key={def.id}>
+                        {expandedDefinitionId === def.id ? (
+                            <div className="liquid-panel-strong rounded-lg p-3 space-y-2">
+                                <Input
+                                    value={editingTerm}
+                                    onChange={(e) => setEditingTerm(e.target.value)}
+                                    className="h-8 text-sm bg-black/20 border-border/50 focus:border-accent/50"
+                                />
+                                <textarea
+                                    value={editingDefinition}
+                                    onChange={(e) => setEditingDefinition(e.target.value)}
+                                    rows={2}
+                                    className="w-full rounded-md bg-black/20 border border-border/50 px-3 py-2 text-sm text-foreground placeholder:text-muted/50 focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/20 resize-none"
+                                />
+                                <textarea
+                                    placeholder="Notes (optional)"
+                                    value={editingNotes}
+                                    onChange={(e) => setEditingNotes(e.target.value)}
+                                    rows={2}
+                                    className="w-full rounded-md bg-black/20 border border-border/50 px-3 py-2 text-sm text-foreground placeholder:text-muted/50 focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/20 resize-none"
+                                />
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={() => handleSaveEdit(def.id)}
+                                        className="flex-1 h-7 text-xs bg-accent/10 text-accent border border-accent/20 hover:bg-accent hover:text-white transition-all"
+                                    >
+                                        Save
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="glass"
+                                        onClick={handleCancelEdit}
+                                        className="flex-1 h-7 text-xs"
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div
+                                onClick={() => handleExpandDefinition(def.id)}
+                                className="liquid-panel-strong rounded-lg p-3 space-y-1 cursor-pointer hover:bg-white/5 transition-colors"
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm font-semibold text-foreground">{def.term}</p>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            void handleDeleteDefinition(def.id);
+                                        }}
+                                        className="flex-shrink-0 text-muted hover:text-danger transition-colors"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                                <p className="text-xs text-muted line-clamp-2">
+                                    {def.definition.length > 50
+                                        ? `${def.definition.substring(0, 50)}...`
+                                        : def.definition}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            {definitions.length === 0 && !showAddForm && (
+                <p className="text-xs text-muted/60 text-center py-4">No definitions yet</p>
             )}
         </div>
     );
@@ -127,19 +315,29 @@ export function CanvasSidebar() {
     }
 
     return (
-        <aside className="liquid-panel border-r border-border p-5 text-foreground flex flex-col h-full overflow-y-auto w-[280px]">
-            <div className="mb-6">
-                <h2 className="type-h2 bg-gradient-to-r from-accent to-accent/50 bg-clip-text text-transparent drop-shadow-sm">Systematic</h2>
-                <p className="type-small muted mt-1 font-medium tracking-wide">Structure your theology</p>
+        <aside className="liquid-panel border-r border-border p-5 text-foreground flex flex-col h-full overflow-y-auto w-full min-w-0">
+            <div className="mb-6 flex items-start justify-between gap-2">
+                <div>
+                    <h2 className="type-h2 bg-gradient-to-r from-accent to-accent/50 bg-clip-text text-transparent drop-shadow-sm">Systematic</h2>
+                    <p className="type-small muted mt-1 font-medium tracking-wide">Structure your theology</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => store.setSidebarCollapsed(true)}
+                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-muted hover:bg-white/10 hover:text-foreground transition-colors"
+                    aria-label="Collapse sidebar"
+                >
+                    <ChevronLeft size={18} />
+                </button>
             </div>
 
             <div className="mt-4 flex items-center justify-between group">
                 <h3 className="type-h3 text-foreground/90 font-semibold tracking-tight">Tiers</h3>
-                <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button type="button" variant="secondary" onClick={() => void actions.addTier()} className="h-6 w-6 p-0 rounded-full bg-glass hover:bg-accent hover:text-white border-border/50 shadow-sm transition-all focus:ring-1 focus:ring-accent">
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button type="button" variant="glass" onClick={() => void actions.addTier()} className="h-6 w-6 p-0 rounded-full">
                         +
                     </Button>
-                    <Button type="button" variant="secondary" onClick={() => void actions.removeTier()} className="h-6 w-6 p-0 rounded-full bg-glass hover:bg-danger hover:text-white border-border/50 shadow-sm transition-all focus:ring-1 focus:ring-danger">
+                    <Button type="button" variant="glass" onClick={() => void actions.removeTier()} className="h-6 w-6 p-0 rounded-full hover:bg-danger hover:text-white focus:ring-1 focus:ring-danger">
                         -
                     </Button>
                 </div>
@@ -170,34 +368,7 @@ export function CanvasSidebar() {
                 </DndContext>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-border/30">
-                <h3 className="type-h3 mb-3 text-foreground/90 font-semibold tracking-tight">Core Truths</h3>
-                <div className="grid grid-cols-2 gap-2">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        className="bg-accent/10 text-accent border border-accent/20 hover:bg-accent hover:text-white transition-all shadow-sm"
-                        onClick={() => void actions.addFoundationalNode()}
-                    >
-                        + Core
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        className="bg-danger/10 text-danger border border-danger/20 hover:bg-danger hover:text-white transition-all shadow-sm"
-                        disabled={
-                            !store.selectedNodeId ||
-                            store.nodes.find(n => n.id === store.selectedNodeId)?.data.tier_id !== FOUNDATIONAL_TIER_ID ||
-                            Boolean(store.nodes.find(n => n.id === store.selectedNodeId)?.data.is_locked)
-                        }
-                        onClick={() => {
-                            if (store.selectedNodeId) void actions.deleteNode(store.selectedNodeId);
-                        }}
-                    >
-                        - Core
-                    </Button>
-                </div>
-            </div>
+            <DefinitionsSection />
         </aside>
     );
 }

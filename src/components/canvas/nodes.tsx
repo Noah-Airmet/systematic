@@ -24,6 +24,10 @@ function getValidationIcon(status: string | null) {
     return null;
 }
 
+function formatQualifier(qualifier: string): string {
+    return qualifier.replace(/_/g, " ");
+}
+
 export function FoundationNode({ data, selected }: NodeProps<CanvasNodeData>) {
     return (
         <div
@@ -55,7 +59,7 @@ export function DoctrineNode({ data, selected }: NodeProps<CanvasNodeData>) {
     return (
         <div
             className={cn(
-                "relative flex h-[130px] w-[130px] items-center justify-center rounded-full border p-5 text-center transition-all duration-300 backdrop-blur-md",
+                "relative flex h-[130px] w-[130px] flex-col items-center justify-center rounded-full border p-5 text-center transition-all duration-300 backdrop-blur-md",
                 confidenceStyles,
                 selected ? "ring-2 ring-accent border-accent shadow-glow scale-105" : "hover:border-accent/50 hover:bg-glass-strong"
             )}
@@ -64,6 +68,11 @@ export function DoctrineNode({ data, selected }: NodeProps<CanvasNodeData>) {
             <span className="line-clamp-4 text-xs font-medium leading-relaxed tracking-wide drop-shadow-sm">
                 {data.title}
             </span>
+            {data.qualifier && (
+                <div className="text-[8px] bg-white/10 rounded-full px-1.5 py-0.5 text-white/60 font-medium tracking-wide mt-1">
+                    {formatQualifier(data.qualifier)}
+                </div>
+            )}
             {getValidationIcon(data.validation_status)}
             <Handle type="source" position={Position.Bottom} className="w-8 h-1.5 rounded-full border-none bg-accent/30 hover:bg-accent hover:shadow-glow transition-all" />
         </div>

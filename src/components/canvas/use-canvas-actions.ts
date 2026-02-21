@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { NodeRow, SystemTier } from "@/lib/types";
+import { NodeRow, SystemTier, InferenceType } from "@/lib/types";
 import { addCustomTier, FOUNDATIONAL_TIER_ID, moveTierToIndex, normalizeSystemTiers, removeTopCustomTier, tierFromY } from "@/lib/tiers";
 import { useCanvasStore, toFlowNodes, toFlowEdges } from "@/lib/store";
 import { Connection } from "reactflow";
@@ -18,7 +18,7 @@ export function useCanvasActions() {
         const nextTiers = normalizeSystemTiers(data.system.tiers);
         store.setTiers(nextTiers);
         // Since we do layout at the top level on load, simple map here is fine
-        store.init(store.systemId, store.systemTitle || "", nextTiers, toFlowNodes(data.nodes || [], nextTiers), toFlowEdges(data.edges || []));
+        store.init(store.systemId, store.systemTitle || "", nextTiers, toFlowNodes(data.nodes || [], nextTiers), toFlowEdges(data.edges || []), store.presuppositions);
     }, [store]);
 
     const persistTiers = useCallback(async (next: SystemTier[]) => {
@@ -82,6 +82,12 @@ export function useCanvasActions() {
                 tags: newNode.tags,
                 validation_status: newNode.validation_status,
                 validation_critique: newNode.validation_critique,
+                grounds: newNode.grounds ?? "",
+                warrant: newNode.warrant ?? "",
+                backing: newNode.backing ?? "",
+                qualifier: newNode.qualifier ?? null,
+                rebuttal: newNode.rebuttal ?? "",
+                epistemic_sources: newNode.epistemic_sources ?? [],
             },
         });
         store.setSaveState("Saved");
@@ -161,6 +167,7 @@ export function useCanvasActions() {
                 source_node_id: connection.source,
                 target_node_id: connection.target,
                 relationship_type: store.relationshipType,
+                inference_type: store.inferenceType,
             }),
         });
         const data = await response.json();
@@ -169,12 +176,38 @@ export function useCanvasActions() {
             store.setSaveState("Save failed");
             return;
         }
+        const inferenceType = store.inferenceType;
         store.addEdge({
             id: data.edge.id,
             source: connection.source,
             target: connection.target,
-            label: store.relationshipType,
-            data: { relationship_type: store.relationshipType },
+            label: inferenceType
+                ? `${store.relationshipType} · ${inferenceType}`
+                : store.relationshipType,
+            data: {
+                relationship_type: store.relationshipType,
+                inference_type: inferenceType,
+            },
+        });
+        store.setSaveState("Saved");
+    }, [store]);
+
+    const patchEdge = useCallback(async (edgeId: string, inferenceType: InferenceType | null) => {
+        store.setSaveState("Saving...");
+        const response = await fetch(`/api/edges/${edgeId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ inference_type: inferenceType }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            store.setError(data.error ?? "Failed to update edge");
+            store.setSaveState("Save failed");
+            return;
+        }
+        store.updateEdgeData(edgeId, {
+            inference_type: data.edge.inference_type,
+            relationship_type: data.edge.relationship_type,
         });
         store.setSaveState("Saved");
     }, [store]);
@@ -186,10 +219,98 @@ export function useCanvasActions() {
             store.setError(data.error ?? "Failed to delete edge");
             return;
         }
-        // Deletion is already optimistically handled by ReactFlow UI on edges change, 
+        // Deletion is already optimistically handled by ReactFlow UI on edges change,
         // but we might want to ensure it's removed if this is called manually.
         store.removeEdge(edgeId);
     }, [store]);
+
+    // === Definition Actions ===
+
+    const loadDefinitions = useCallback(async () => {
+        if (!store.systemId) return;
+        const response = await fetch(`/api/definitions?system_id=${store.systemId}`);
+        const data = await response.json();
+        if (response.ok) {
+            store.setDefinitions(data.definitions ?? []);
+        }
+    }, [store]);
+
+    const createDefinition = useCallback(async (term: string, definition: string, notes?: string) => {
+        if (!store.systemId) return;
+        store.setSaveState("Saving...");
+        const response = await fetch("/api/definitions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                system_id: store.systemId,
+                term,
+                definition,
+                notes,
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            store.setError(data.error ?? "Failed to create definition");
+            store.setSaveState("Save failed");
+            return;
+        }
+        store.addDefinition(data.definition);
+        store.setSaveState("Saved");
+    }, [store]);
+
+    const patchDefinition = useCallback(async (definitionId: string, patch: Record<string, unknown>) => {
+        store.setSaveState("Saving...");
+        const response = await fetch(`/api/definitions/${definitionId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(patch),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            store.setError(data.error ?? "Failed to update definition");
+            store.setSaveState("Save failed");
+            return;
+        }
+        store.updateDefinition(definitionId, data.definition);
+        store.setSaveState("Saved");
+    }, [store]);
+
+    const deleteDefinition = useCallback(async (definitionId: string) => {
+        if (!window.confirm("Delete this definition? It will be unlinked from all nodes.")) return;
+        const response = await fetch(`/api/definitions/${definitionId}`, { method: "DELETE" });
+        if (!response.ok) {
+            const data = await response.json();
+            store.setError(data.error ?? "Failed to delete definition");
+            return;
+        }
+        store.removeDefinition(definitionId);
+    }, [store]);
+
+    const linkDefinition = useCallback(async (nodeId: string, definitionId: string) => {
+        const response = await fetch("/api/node-definitions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ node_id: nodeId, definition_id: definitionId }),
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            store.setError(data.error ?? "Failed to link definition");
+        }
+    }, [store]);
+
+    const unlinkDefinition = useCallback(async (nodeId: string, definitionId: string) => {
+        const response = await fetch("/api/node-definitions", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ node_id: nodeId, definition_id: definitionId }),
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            store.setError(data.error ?? "Failed to unlink definition");
+        }
+    }, [store]);
+
+    // === Tier Actions ===
 
     const addTier = useCallback(async () => {
         const next = addCustomTier(store.tiers);
@@ -256,10 +377,18 @@ export function useCanvasActions() {
         deleteNode,
         patchNode,
         persistEdge,
+        patchEdge,
         deleteEdge,
         addTier,
         removeTier,
         validateNode,
         handleTierDrop,
+        // Definitions
+        loadDefinitions,
+        createDefinition,
+        patchDefinition,
+        deleteDefinition,
+        linkDefinition,
+        unlinkDefinition,
     };
 }

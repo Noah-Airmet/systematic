@@ -2,18 +2,17 @@
 
 import "reactflow/dist/style.css";
 import Link from "next/link";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
   Controls,
-  MiniMap,
   ReactFlow,
   ReactFlowProvider,
   ReactFlowInstance,
   useStore
 } from "reactflow";
-import { EdgeRow, NodeRow, RelationshipType, SystemRow } from "@/lib/types";
+import { EdgeRow, InferenceType, NodeRow, RelationshipType, SystemRow } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { buildTierBands, FOUNDATIONAL_TIER_ID, tierFromY } from "@/lib/tiers";
@@ -23,6 +22,58 @@ import { canvasNodeTypes } from "./nodes";
 import { NodeInspector } from "./inspector";
 import { CanvasSidebar } from "./sidebar";
 import { applyFoundationalLayout } from "@/lib/foundation-layout";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+const MIN_SIDEBAR_WIDTH = 200;
+const MAX_SIDEBAR_WIDTH = 480;
+
+function SidebarResizeHandle() {
+  const store = useCanvasStore();
+  const [isDragging, setIsDragging] = useState(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(280);
+
+  const onMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsDragging(true);
+      startXRef.current = e.clientX;
+      startWidthRef.current = store.sidebarWidth;
+    },
+    [store.sidebarWidth]
+  );
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      const delta = e.clientX - startXRef.current;
+      const next = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, startWidthRef.current + delta));
+      store.setSidebarWidth(next);
+    };
+    const onUp = () => setIsDragging(false);
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isDragging, store]);
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      className="absolute right-0 top-1/2 z-10 flex h-12 w-3 -translate-y-1/2 cursor-col-resize items-center justify-center touch-none"
+      onMouseDown={onMouseDown}
+    >
+      <div className="h-2 w-2 rounded-full bg-white/30 hover:bg-white/50 transition-colors shadow-sm" />
+    </div>
+  );
+}
 
 type Props = {
   system: SystemRow;
@@ -69,9 +120,6 @@ function TierBackgrounds() {
           );
         })}
       </div>
-      {store.showTensionMap && (
-        <div className="absolute inset-0 bg-danger/5 backdrop-blur-[1px] mix-blend-overlay transition-opacity duration-700 animate-in fade-in z-0 pointer-events-none" />
-      )}
     </div>
   );
 }
@@ -91,21 +139,45 @@ function CanvasInner({ system, nodes, edges }: Props) {
       system.title,
       system.tiers,
       toFlowNodes(laidOutNodes, system.tiers),
-      toFlowEdges(edges)
+      toFlowEdges(edges),
+      system.presuppositions
     );
+    // Load definitions for this system
+    void actions.loadDefinitions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const gridCols = store.inspectorOpen ? "280px 1fr 360px" : "280px 1fr";
+  const sidebarCol = store.sidebarCollapsed ? "0" : `${store.sidebarWidth}px`;
+  const gridCols = store.inspectorOpen ? `${sidebarCol} 1fr 360px` : `${sidebarCol} 1fr`;
 
   // If store not loaded yet, don't render graph
   if (!store.systemId) return <div className="h-screen w-screen bg-background flex justify-center items-center text-accent animate-pulse">Loading Theology...</div>;
 
   return (
     <div className="grid h-screen overflow-hidden bg-background text-foreground" style={{ gridTemplateColumns: gridCols }}>
-      <CanvasSidebar />
+      <div
+        className="relative flex overflow-hidden"
+        style={{ minWidth: store.sidebarCollapsed ? 0 : store.sidebarWidth }}
+      >
+        {!store.sidebarCollapsed && (
+          <>
+            <CanvasSidebar />
+            <SidebarResizeHandle />
+          </>
+        )}
+      </div>
 
       <div className="relative h-full" ref={flowRef}>
+        {store.sidebarCollapsed && (
+          <button
+            type="button"
+            onClick={() => store.setSidebarCollapsed(false)}
+            className="absolute left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-glass-strong text-white/80 shadow-glow hover:bg-white/10 hover:text-white transition-colors"
+            aria-label="Expand sidebar"
+          >
+            <ChevronRight size={18} />
+          </button>
+        )}
         {/* Sleek Toolbar */}
         <div className="liquid-panel absolute left-6 right-6 top-6 z-20 flex items-center justify-between rounded-xl px-5 py-3 transition-all">
           <div className="flex items-baseline gap-3">
@@ -115,21 +187,25 @@ function CanvasInner({ system, nodes, edges }: Props) {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 mr-4 bg-white/5 p-1 rounded-lg border border-white/5">
-              <span className="type-label text-[10px] text-muted/80 pl-2">Display</span>
-              <Button
-                type="button"
-                variant={store.showTensionMap ? "primary" : "secondary"}
-                className={`px-3 py-1 h-7 text-xs transition-all ${store.showTensionMap ? 'bg-danger text-white hover:bg-danger/80 shadow-glow shadow-danger/50' : 'bg-transparent text-muted hover:text-white'}`}
-                onClick={() => store.setShowTensionMap(!store.showTensionMap)}
-              >
-                Tension Map
-              </Button>
-            </div>
-
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="glass"
+              onClick={() => {
+                const instance = flowInstanceRef.current;
+                if (!instance || !flowRef.current) return;
+                const rect = flowRef.current.getBoundingClientRect();
+                const { x, y } = instance.screenToFlowPosition({
+                  x: rect.left + rect.width / 2,
+                  y: rect.top + rect.height / 2,
+                });
+                void actions.createNode(x, y);
+              }}
+            >
+              Add node
+            </Button>
             <Link href={`/systems/${store.systemId}/onboarding`}>
-              <Button type="button" variant="secondary" className="bg-white/10 hover:bg-white/20 border-white/10 text-white transition-all shadow-sm">
+              <Button type="button" variant="glass">
                 Framework Settings
               </Button>
             </Link>
@@ -165,7 +241,22 @@ function CanvasInner({ system, nodes, edges }: Props) {
           }}
           onNodeDragStart={(_, node) => store.setSelectedNodeId(node.id)}
           onNodeDragStop={(_, node) => {
-            if ((node.data as CanvasNodeData).tier_id === FOUNDATIONAL_TIER_ID) return;
+            if ((node.data as CanvasNodeData).tier_id === FOUNDATIONAL_TIER_ID) {
+              const bands = buildTierBands(store.tiers);
+              const foundationBand = bands.find(t => t.id === FOUNDATIONAL_TIER_ID);
+              if (foundationBand) {
+                const clampedY = Math.max(foundationBand.yMin, Math.min(node.position.y, foundationBand.yMax - 90));
+                if (clampedY !== node.position.y) {
+                  store.onNodesChange([{ id: node.id, type: "position", position: { x: node.position.x, y: clampedY } }]);
+                }
+                void actions.patchNode(node.id, {
+                  x_position: node.position.x,
+                  y_position: clampedY,
+                  tier_id: FOUNDATIONAL_TIER_ID,
+                });
+              }
+              return;
+            }
             void actions.patchNode(node.id, {
               x_position: node.position.x,
               y_position: node.position.y,
@@ -233,18 +324,9 @@ function CanvasInner({ system, nodes, edges }: Props) {
             labelBgPadding: [6, 4]
           }}
           proOptions={{ hideAttribution: true }}
-          className={store.showTensionMap ? "[&_.react-flow__edge-path]:stroke-danger [&_.react-flow__edge-path]:stroke-[3px] [&_.react-flow__edge-path]:opacity-60" : ""}
         >
           <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="rgba(255,255,255,0.06)" />
           <Controls position="bottom-left" className="bg-glass-strong border-border/50 shadow-glow rounded-md overflow-hidden" />
-          <MiniMap
-            pannable
-            zoomable
-            nodeColor={(node) => (node.type === "foundation" ? "#e4e4e7" : "rgba(255,255,255,0.2)")}
-            maskColor="rgba(2, 2, 2, 0.8)"
-            style={{ backgroundColor: "rgba(10, 10, 12, 0.6)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }}
-            className="shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
-          />
         </ReactFlow>
 
         {/* Edge Connection Modal Overlay */}
@@ -254,10 +336,11 @@ function CanvasInner({ system, nodes, edges }: Props) {
               <h3 className="type-h3 mb-1 text-white">Connect Protocol</h3>
               <p className="type-small muted mb-5">Define the theological relationship between these concepts.</p>
 
+              <label className="type-label text-muted/80 mb-1 block">Theological Relationship</label>
               <Select
                 value={store.relationshipType}
                 onChange={(event) => store.setRelationshipType(event.target.value as RelationshipType)}
-                className="mb-6 w-full bg-black/40 border-accent/40 focus:border-accent text-white"
+                className="mb-4 w-full bg-black/40 border-accent/40 focus:border-accent text-white"
               >
                 <option value="supports">Supports (builds upon)</option>
                 <option value="relies_upon">Relies Upon (requires)</option>
@@ -265,13 +348,28 @@ function CanvasInner({ system, nodes, edges }: Props) {
                 <option value="qualifies">Qualifies (adds nuance)</option>
               </Select>
 
-              <div className="flex gap-3 justify-end">
-                <Button type="button" variant="secondary" className="bg-white/10 hover:bg-white/20 text-white" onClick={() => store.setPendingConnection(null)}>
+              <label className="type-label text-muted/80 mb-1 block">Inference Type <span className="text-muted/50">(optional)</span></label>
+              <Select
+                value={store.inferenceType ?? ""}
+                onChange={(event) => store.setInferenceType((event.target.value || null) as InferenceType | null)}
+                className="mb-6 w-full bg-black/40 border-accent/40 focus:border-accent text-white"
+              >
+                <option value="">Not specified</option>
+                <option value="deductive">Deductive (must follow)</option>
+                <option value="inductive">Inductive (probably follows)</option>
+                <option value="abductive">Abductive (best explanation)</option>
+                <option value="analogical">Analogical (parallel case)</option>
+                <option value="exegetical">Exegetical (from text)</option>
+              </Select>
+
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="glass" onClick={() => { store.setPendingConnection(null); store.setInferenceType(null); }}>
                   Cancel
                 </Button>
                 <Button type="button" className="bg-accent text-accent-foreground hover:bg-accent/80 shadow-glow" onClick={() => {
                   if (store.pendingConnection) void actions.persistEdge(store.pendingConnection);
                   store.setPendingConnection(null);
+                  store.setInferenceType(null);
                 }}>
                   Establish Link
                 </Button>

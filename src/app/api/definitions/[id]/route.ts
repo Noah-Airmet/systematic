@@ -1,4 +1,4 @@
-import { patchEdgeSchema } from "@/lib/schemas";
+import { patchDefinitionSchema } from "@/lib/schemas";
 import { requireUser } from "@/lib/db";
 import { json } from "@/lib/utils";
 
@@ -6,24 +6,24 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const { supabase } = await requireUser();
-    const parsed = patchEdgeSchema.safeParse(await request.json());
+    const parsed = patchDefinitionSchema.safeParse(await request.json());
 
     if (!parsed.success) {
       return json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { data: edge, error } = await supabase
-      .from("edges")
+    const { data: definition, error } = await supabase
+      .from("definitions")
       .update(parsed.data)
       .eq("id", id)
       .select("*")
       .single();
 
-    if (error || !edge) {
-      return json({ error: error?.message ?? "Edge not found" }, { status: 404 });
+    if (error || !definition) {
+      return json({ error: error?.message ?? "Definition not found" }, { status: 404 });
     }
 
-    return json({ edge });
+    return json({ definition });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Unauthorized" }, { status: 401 });
   }
@@ -34,20 +34,10 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     const { id } = await params;
     const { supabase } = await requireUser();
 
-    const { data: edge } = await supabase.from("edges").select("*").eq("id", id).single();
-    if (!edge) {
-      return json({ error: "Edge not found" }, { status: 404 });
-    }
-
-    const { error } = await supabase.from("edges").delete().eq("id", id);
+    const { error } = await supabase.from("definitions").delete().eq("id", id);
     if (error) {
       return json({ error: error.message }, { status: 500 });
     }
-
-    await supabase
-      .from("nodes")
-      .update({ validation_status: null, validation_critique: null })
-      .in("id", [edge.source_node_id, edge.target_node_id]);
 
     return json({ ok: true });
   } catch (error) {
