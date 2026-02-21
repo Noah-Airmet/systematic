@@ -3,29 +3,12 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MVP_QUESTIONS } from "@/lib/constants";
-import { detectContradictions, validateS1Ranks } from "@/lib/presuppositions";
-import { Presuppositions, S1RankValue } from "@/lib/types";
+import { detectContradictions } from "@/lib/presuppositions";
+import { Presuppositions } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 
-const S1_MODELS: Array<keyof S1RankValue> = [
-  "penal_substitution",
-  "moral_influence",
-  "christus_victor",
-  "ransom",
-  "solidarity",
-];
 
-function emptyS1(): S1RankValue {
-  return {
-    penal_substitution: 4,
-    moral_influence: 3,
-    christus_victor: 2,
-    ransom: 1,
-    solidarity: 0,
-  };
-}
 
 export function OnboardingForm({ systemId, initial }: { systemId: string; initial: Presuppositions }) {
   const [values, setValues] = useState<Presuppositions>(initial);
@@ -60,7 +43,7 @@ export function OnboardingForm({ systemId, initial }: { systemId: string; initia
       {MVP_QUESTIONS.map((question) => {
         const current = values[question.id] ?? { mode: "undecided" as const };
         const isChoice = question.type === "choice";
-        const isS1 = question.id === "S1";
+
 
         // Check if current value is custom (not in predefined options)
         const isCustomValue = isChoice && current.mode === "position" && typeof current.value === "string" && !("options" in question && (question.options as readonly string[]).includes(current.value));
@@ -117,52 +100,7 @@ export function OnboardingForm({ systemId, initial }: { systemId: string; initia
               </div>
             )}
 
-            {isS1 && (
-              <div className="mb-6 space-y-4">
-                {current.mode !== "position" && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full justify-center px-5 py-4 h-auto text-[15px] font-medium"
-                    onClick={() => updateQuestion(question.id, { mode: "position", value: emptyS1() })}
-                  >
-                    Define Atonement Ranks
-                  </Button>
-                )}
-                {current.mode === "position" && typeof current.value === "object" && (
-                  <div className="space-y-3 p-4 rounded-2xl bg-black/40 border border-white/5">
-                    {(() => {
-                      const rankValue = current.value as S1RankValue;
-                      return S1_MODELS.map((model) => (
-                        <div key={model} className="flex items-center gap-4">
-                          <span className="flex-1 capitalize text-white/80 font-medium tracking-wide text-sm">{model.replace("_", " ")}</span>
-                          <Select
-                            value={String(rankValue[model])}
-                            onChange={(e) => {
-                              const nextVal: S1RankValue = {
-                                ...rankValue,
-                                [model]: Number(e.target.value),
-                              };
-                              updateQuestion(question.id, { mode: "position", value: nextVal });
-                            }}
-                            className="w-24 bg-white/5 border-white/10 text-center"
-                          >
-                            {[1, 2, 3, 4, 5].map((idx, i) => (
-                              <option key={i} value={i} className="bg-black text-white">
-                                Rank {idx}
-                              </option>
-                            ))}
-                          </Select>
-                        </div>
-                      ));
-                    })()}
-                    {!validateS1Ranks(current.value as S1RankValue) ? (
-                      <p className="type-small text-danger mt-2 bg-danger/10 p-2 rounded text-center">Ranks must be exactly 1 through 5 uniquely.</p>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            )}
+
 
             {/* Sub-actions for Undecided/Not Foundational */}
             <div className="flex gap-3 pt-4 border-t border-white/10">

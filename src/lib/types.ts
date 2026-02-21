@@ -17,16 +17,8 @@ export type ValidationRating = "consistent" | "warning" | "contradiction";
 
 export type PresuppositionMode = "position" | "undecided" | "not_foundational";
 
-export type S1RankValue = {
-  penal_substitution: number;
-  moral_influence: number;
-  christus_victor: number;
-  ransom: number;
-  solidarity: number;
-};
-
 export type PresuppositionAnswer =
-  | { mode: "position"; value: string | S1RankValue }
+  | { mode: "position"; value: string }
   | { mode: "undecided" }
   | { mode: "not_foundational" };
 

@@ -18,16 +18,7 @@ export const DEFAULT_PRESUPPOSITIONS: Presuppositions = {
   T3: { mode: "undecided" },
   T5: { mode: "undecided" },
   A2: { mode: "undecided" },
-  S1: {
-    mode: "position",
-    value: {
-      penal_substitution: 4,
-      moral_influence: 3,
-      christus_victor: 2,
-      ransom: 1,
-      solidarity: 0,
-    },
-  },
+  S1: { mode: "undecided" },
 };
 
 export const MVP_QUESTIONS = [
@@ -75,8 +66,9 @@ export const MVP_QUESTIONS = [
   },
   {
     id: "S1",
-    label: "Atonement Mechanism (rank all 5)",
-    type: "ranked",
+    label: "Atonement Mechanism",
+    options: ["Penal Substitution", "Moral Influence", "Christus Victor", "Ransom", "Solidarity"],
+    type: "choice",
   },
 ] as const;
 

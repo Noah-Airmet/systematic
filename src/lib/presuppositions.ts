@@ -1,13 +1,5 @@
 import { CONTRADICTION_PAIRS } from "@/lib/constants";
-import { Presuppositions, S1RankValue } from "@/lib/types";
-
-export function validateS1Ranks(value: S1RankValue): boolean {
-  const vals = Object.values(value);
-  if (vals.length !== 5) return false;
-  const unique = new Set(vals);
-  if (unique.size !== 5) return false;
-  return vals.every((v) => Number.isInteger(v) && v >= 0 && v <= 4);
-}
+import { Presuppositions } from "@/lib/types";
 
 export function filterNotFoundational(p: Presuppositions): Presuppositions {
   return Object.fromEntries(
