@@ -238,21 +238,25 @@ export function NodeInspector({ flowRef, flowInstanceRef }: Props) {
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="type-label text-muted">Confidence Level</label>
+                        <label className="type-label text-muted">Tier</label>
                         <Select
-                            value={selectedNode.data.confidence ?? ""}
+                            value={selectedNode.data.tier_id ?? ""}
                             onChange={(e) => {
-                                const conf = (e.target.value || null) as "settled" | "exploring" | "troubled" | null;
-                                store.updateNodeData(selectedNode.id, { confidence: conf });
-                                void actions.patchNode(selectedNode.id, { confidence: conf });
+                                const newTierId = e.target.value;
+                                if (newTierId) void actions.moveNodeToTier(selectedNode.id, newTierId);
                             }}
                             className="w-full bg-glass-strong border-border/50 focus:border-accent text-sm"
+                            disabled={selectedNode.data.tier_id === FOUNDATIONAL_TIER_ID} // Core truths cannot change tier this way
                         >
-                            <option value="">Not set</option>
-                            <option value="settled">Settled</option>
-                            <option value="exploring">Exploring</option>
-                            <option value="troubled">Troubled</option>
+                            {store.tiers.map((tier) => (
+                                <option key={tier.id} value={tier.id}>
+                                    {tier.name}
+                                </option>
+                            ))}
                         </Select>
+                        {selectedNode.data.tier_id === FOUNDATIONAL_TIER_ID && (
+                            <p className="text-[10px] text-muted/70 italic mt-1 px-1">Core truths belong exclusively to the Foundational Dogma tier.</p>
+                        )}
                     </div>
 
                     <div className="space-y-1.5">

@@ -10,7 +10,7 @@ import {
     addEdge as rfAddEdge,
 } from "reactflow";
 import { DefinitionRow, EdgeRow, InferenceType, NodeRow, RelationshipType, SystemTier, Presuppositions } from "./types";
-import { buildTierBands, FOUNDATIONAL_TIER_ID } from "./tiers";
+import { FOUNDATIONAL_TIER_ID } from "./tiers";
 
 export type CanvasNodeData = {
     title: string;
@@ -72,6 +72,7 @@ export type CanvasState = {
     setSidebarCollapsed: (collapsed: boolean) => void;
     setNodeToDelete: (id: string | null) => void;
     setTierHeight: (height: number) => void;
+    setSystemTitle: (title: string) => void;
 
     // Definitions
     setDefinitions: (definitions: DefinitionRow[]) => void;
@@ -91,24 +92,13 @@ export type CanvasState = {
     updateEdgeData: (id: string, data: Record<string, unknown>) => void;
     removeEdge: (id: string) => void;
 };
-
-export function toFlowNodes(rows: NodeRow[], tiers?: SystemTier[], tierHeight: number = 250): Node<CanvasNodeData>[] {
-    const bands = tiers ? buildTierBands(tiers, tierHeight) : null;
-    const foundationBand = bands?.find((t) => t.id === FOUNDATIONAL_TIER_ID);
+export function toFlowNodes(rows: NodeRow[], tiers?: SystemTier[]): Node<CanvasNodeData>[] {
 
     return rows.map((node) => ({
         id: node.id,
         type: node.tier_id === FOUNDATIONAL_TIER_ID ? "foundation" : "doctrine",
         position: { x: node.x_position, y: node.y_position },
         draggable: true,
-        ...(node.tier_id === FOUNDATIONAL_TIER_ID && foundationBand
-            ? {
-                extent: [
-                    [-10000, foundationBand.yMin],
-                    [10000, foundationBand.yMax - 90], // node height allowance
-                ],
-            }
-            : {}),
         data: {
             title: node.title,
             description: node.description,
@@ -188,6 +178,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
     setNodeToDelete: (nodeToDelete) => set({ nodeToDelete }),
     setTierHeight: (tierHeight) => set({ tierHeight }),
+    setSystemTitle: (systemTitle) => set({ systemTitle }),
 
     // Definitions
     setDefinitions: (definitions) => set({ definitions }),

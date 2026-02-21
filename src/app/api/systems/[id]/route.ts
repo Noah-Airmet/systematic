@@ -62,3 +62,38 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     return json({ error: error instanceof Error ? error.message : "Unauthorized" }, { status: 401 });
   }
 }
+
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const { supabase, user } = await requireUser();
+    const body = await request.json();
+
+    // Verify ownership
+    const { data: existing } = await supabase
+      .from("systems")
+      .select("id")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!existing) {
+      return json({ error: "Not found or unauthorized" }, { status: 404 });
+    }
+
+    const { data: system, error } = await supabase
+      .from("systems")
+      .update({ title: body.title, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      return json({ error: error.message }, { status: 500 });
+    }
+
+    return json({ system });
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : "Unauthorized" }, { status: 401 });
+  }
+}

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { NodeRow, SystemTier, InferenceType } from "@/lib/types";
-import { addCustomTier, FOUNDATIONAL_TIER_ID, moveTierToIndex, normalizeSystemTiers, removeTopCustomTier, tierFromY } from "@/lib/tiers";
+import { addCustomTier, buildTierBands, FOUNDATIONAL_TIER_ID, moveTierToIndex, normalizeSystemTiers, removeTopCustomTier, tierFromY } from "@/lib/tiers";
 import { useCanvasStore, toFlowNodes, toFlowEdges } from "@/lib/store";
 import { Connection } from "reactflow";
 
@@ -123,6 +123,8 @@ export function useCanvasActions() {
         store.setSaveState("Saved");
     }, [store, reloadGraph]);
 
+
+
     const deleteNode = useCallback(async (nodeId: string) => {
         store.setSaveState("Saving...");
         store.setNodeToDelete(null); // Clear pending delete state
@@ -187,6 +189,28 @@ export function useCanvasActions() {
         });
         store.setSaveState("Saved");
     }, [store]);
+
+    const moveNodeToTier = useCallback(async (nodeId: string, tierId: string) => {
+        const bands = buildTierBands(store.tiers, store.tierHeight);
+        const targetBand = bands.find((b) => b.id === tierId);
+        if (!targetBand) return;
+
+        const newY = targetBand.yCenter;
+
+        // Optimistically update ReactFlow
+        store.onNodesChange([
+            { id: nodeId, type: "position", position: { x: store.nodes.find(n => n.id === nodeId)?.position.x ?? 0, y: newY } }
+        ]);
+
+        // Update exact data tracking
+        store.updateNodeData(nodeId, { tier_id: tierId });
+
+        // Persist to DB
+        await patchNode(nodeId, {
+            tier_id: tierId,
+            y_position: newY
+        });
+    }, [store, patchNode]);
 
     const persistEdge = useCallback(async (connection: Connection) => {
         if (!connection.source || !connection.target || !store.systemId) return;
@@ -401,11 +425,30 @@ export function useCanvasActions() {
         if (ok) await reloadGraph();
     }, [store.draggingTierId, store.tiers, persistTiers, reloadGraph]);
 
+    const patchSystemTitle = useCallback(async (title: string) => {
+        if (!store.systemId) return;
+        store.setSaveState("Saving...");
+        const response = await fetch(`/api/systems/${store.systemId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            store.setError(data.error ?? "Failed to update system title");
+            store.setSaveState("Save failed");
+            return;
+        }
+        store.setSystemTitle(data.system.title);
+        store.setSaveState("Saved");
+    }, [store]);
+
     return {
         reloadGraph,
         persistTiers,
         createNode,
         addFoundationalNode,
+        moveNodeToTier,
         deleteNode,
         requestNodeDeletion,
         patchNode,
@@ -416,6 +459,7 @@ export function useCanvasActions() {
         removeTier,
         validateNode,
         handleTierDrop,
+        patchSystemTitle,
         // Definitions
         loadDefinitions,
         createDefinition,

@@ -16,7 +16,7 @@ import {
 import { EdgeRow, InferenceType, NodeRow, RelationshipType, SystemRow } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { buildTierBands, FOUNDATIONAL_TIER_ID, tierFromY } from "@/lib/tiers";
+import { buildTierBands, FOUNDATIONAL_TIER_ID } from "@/lib/tiers";
 import { useCanvasStore, CanvasNodeData, toFlowNodes, toFlowEdges } from "@/lib/store";
 import { useCanvasActions } from "./use-canvas-actions";
 import { canvasNodeTypes } from "./nodes";
@@ -25,10 +25,73 @@ import { CanvasSidebar } from "./sidebar";
 import { DynamicEdge } from "./dynamic-edge";
 
 const edgeTypes = { default: DynamicEdge };
-import { applyFoundationalLayout, foundationPosition } from "@/lib/foundation-layout";
+import { applyFoundationalLayout } from "@/lib/foundation-layout";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const MIN_SIDEBAR_WIDTH = 200;
+
+function EditableSystemTitle({ title, onSave }: { title: string; onSave: (newTitle: string) => void }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setValue(title);
+  }, [title]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSave = () => {
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== title) {
+      onSave(trimmed);
+    } else {
+      setValue(title);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      setValue(title);
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={handleKeyDown}
+        className="type-h3 w-[240px] rounded-md bg-white/10 px-2 py-1 font-semibold tracking-tight text-white drop-shadow-sm outline-none ring-2 ring-accent/50"
+        aria-label="System name"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setIsEditing(true)}
+      className="type-h3 cursor-text rounded-md px-2 py-1 font-semibold tracking-tight text-white drop-shadow-sm transition-colors hover:bg-white/10"
+      aria-label="Click to edit system name"
+      title="Click to edit system name"
+    >
+      {title}
+    </button>
+  );
+}
 const MAX_SIDEBAR_WIDTH = 480;
 
 function SidebarResizeHandle() {
@@ -144,6 +207,7 @@ function CanvasInner({ system, nodes, edges }: Props) {
 
   const flowRef = useRef<HTMLDivElement>(null);
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
+  const dragOriginsRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     // Initial load
@@ -152,7 +216,7 @@ function CanvasInner({ system, nodes, edges }: Props) {
       system.id,
       system.title,
       system.tiers,
-      toFlowNodes(laidOutNodes, system.tiers, 250),
+      toFlowNodes(laidOutNodes, system.tiers),
       toFlowEdges(edges),
       system.presuppositions
     );
@@ -160,6 +224,34 @@ function CanvasInner({ system, nodes, edges }: Props) {
     void actions.loadDefinitions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Disable shortcuts if user is typing
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA" ||
+        (document.activeElement as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        const instance = flowInstanceRef.current;
+        if (!instance || !flowRef.current) return;
+        const rect = flowRef.current.getBoundingClientRect();
+        const { x, y } = instance.screenToFlowPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        });
+        void actions.createNode(x, y);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [actions]);
 
   const sidebarCol = store.sidebarCollapsed ? "0" : `${store.sidebarWidth}px`;
   const gridCols = store.inspectorOpen ? `${sidebarCol} 1fr 360px` : `${sidebarCol} 1fr`;
@@ -202,7 +294,7 @@ function CanvasInner({ system, nodes, edges }: Props) {
             >
               <ChevronLeft size={20} />
             </Link>
-            <h1 className="type-h3 font-semibold tracking-tight text-white drop-shadow-sm">{store.systemTitle}</h1>
+            <EditableSystemTitle title={store.systemTitle || "Untitled System"} onSave={actions.patchSystemTitle} />
             <span className="type-small rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold tracking-widest text-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
               {store.saveState.toUpperCase()}
             </span>
@@ -212,6 +304,7 @@ function CanvasInner({ system, nodes, edges }: Props) {
             <Button
               type="button"
               variant="glass"
+              title="Shortcut: Shift+N"
               onClick={() => {
                 const instance = flowInstanceRef.current;
                 if (!instance || !flowRef.current) return;
@@ -266,7 +359,71 @@ function CanvasInner({ system, nodes, edges }: Props) {
               });
             }
             if (otherChanges.length > 0) {
-              store.onNodesChange(otherChanges);
+              const modifiedChanges = otherChanges.map(change => {
+                if (change.type === 'position' && change.dragging && change.position) {
+                  const nodeId = change.id;
+                  const node = store.nodes.find(n => n.id === nodeId);
+                  if (!node) return change;
+
+                  const originTierId = dragOriginsRef.current[nodeId] || node.data.tier_id;
+                  const isCoreTruth = node.data.tier_id === FOUNDATIONAL_TIER_ID;
+
+                  const bands = buildTierBands(store.tiers, store.tierHeight);
+                  const originBand = bands.find(b => b.id === originTierId);
+
+                  if (originBand) {
+                    const y = change.position.y;
+                    let deltaY = 0;
+                    let boundary = 0;
+
+                    const SNAP_BUFFER = 100; // node height approx
+
+                    if (y < originBand.yMin) {
+                      deltaY = y - originBand.yMin;
+                      boundary = originBand.yMin;
+                    } else if (y > originBand.yMax - SNAP_BUFFER) {
+                      deltaY = y - (originBand.yMax - SNAP_BUFFER);
+                      boundary = originBand.yMax - SNAP_BUFFER;
+                    }
+                    if (deltaY !== 0) {
+                      const snapThreshold = 180; // Distance needed to break resistance
+
+                      if (!isCoreTruth && Math.abs(deltaY) > snapThreshold) {
+                        // SNAPPED! Resistance breaks, node updates to new tier context
+                        const newBand = bands.find(b => y >= b.yMin && y <= b.yMax - SNAP_BUFFER)
+                          || ((y > bands[bands.length - 1].yMax) ? bands[bands.length - 1] : bands[0]);
+                        if (newBand) dragOriginsRef.current[nodeId] = newBand.id;
+
+                        // Lerp slightly instead of jumping instantly to cursor
+                        const currentY = node.position.y;
+                        const targetY = change.position.y;
+                        const lerpFactor = 0.4; // 1 = instant, 0.1 = slow
+                        return {
+                          ...change,
+                          position: {
+                            ...change.position,
+                            y: currentY + (targetY - currentY) * lerpFactor
+                          }
+                        };
+                      } else {
+                        // RESIST (logarithmic pull)
+                        const val = Math.abs(deltaY);
+                        const easeVal = Math.log10(val * 0.2 + 1) * 35;
+                        return {
+                          ...change,
+                          position: {
+                            ...change.position,
+                            y: boundary + Math.sign(deltaY) * easeVal
+                          }
+                        };
+                      }
+                    }
+                  }
+                }
+                return change;
+              });
+
+              store.onNodesChange(modifiedChanges);
             }
           }}
           onEdgesChange={(changes) => {
@@ -276,65 +433,48 @@ function CanvasInner({ system, nodes, edges }: Props) {
               void actions.deleteEdge(removed.id);
             }
           }}
-          onNodeDrag={(_, node) => {
-            if ((node.data as CanvasNodeData).tier_id === FOUNDATIONAL_TIER_ID) {
-              // Get all foundational nodes
-              const foundationals = store.nodes.filter(n => n.data.tier_id === FOUNDATIONAL_TIER_ID);
-              if (foundationals.length === 0) return;
+          onNodeDragStart={(_, node) => {
+            store.setSelectedNodeId(node.id);
+            dragOriginsRef.current[node.id] = (node.data as CanvasNodeData).tier_id;
+          }}
+          onNodeDragStop={(_, node) => {
+            const nodeId = node.id;
+            const originTierId = dragOriginsRef.current[nodeId];
+            delete dragOriginsRef.current[nodeId];
 
-              // Sort them dynamically by their current 2D position, including the one currently dragged
-              const sorted = [...foundationals].sort((a, b) => {
-                const ax = a.id === node.id ? node.position.x : a.position.x;
-                const ay = a.id === node.id ? node.position.y : a.position.y;
-                const bx = b.id === node.id ? node.position.x : b.position.x;
-                const by = b.id === node.id ? node.position.y : b.position.y;
-                const rowDiff = ay - by;
-                if (Math.abs(rowDiff) > 50) return rowDiff;
-                return ax - bx;
-              });
+            const isCoreTruth = (node.data as CanvasNodeData).tier_id === FOUNDATIONAL_TIER_ID;
+            const bands = buildTierBands(store.tiers, store.tierHeight);
+            const y = node.position.y;
+            const SNAP_BUFFER = 100;
 
-              // Apply the calculated layout dynamically
-              const updates = sorted.map((n, index) => {
-                const ideal = foundationPosition(index, foundationals.length, store.tiers, store.tierHeight);
-                if (n.id === node.id) return null; // Let the dragged node be governed by the cursor
-                if (n.position.x === ideal.x && n.position.y === ideal.y) return null;
-                return { id: n.id, type: "position" as const, position: { x: ideal.x, y: ideal.y } };
-              }).filter(Boolean) as any[];
+            let finalTierId = originTierId || (node.data as CanvasNodeData).tier_id;
+            let finalY = y;
+            let needsSnap = false;
 
-              if (updates.length > 0) {
-                store.onNodesChange(updates);
+            if (isCoreTruth) {
+              finalTierId = FOUNDATIONAL_TIER_ID;
+              const foundationBand = bands.find(b => b.id === FOUNDATIONAL_TIER_ID);
+              if (foundationBand) {
+                if (y < foundationBand.yMin) { finalY = foundationBand.yMin; needsSnap = true; }
+                else if (y > foundationBand.yMax - SNAP_BUFFER) { finalY = foundationBand.yMax - SNAP_BUFFER; needsSnap = true; }
+              }
+            } else {
+              const currentBand = bands.find(b => b.id === finalTierId);
+              // If it successfully snapped, fine, but if it didn't snap and is still released out of bounds, snap it back
+              if (currentBand) {
+                if (y < currentBand.yMin) { finalY = currentBand.yMin; needsSnap = true; }
+                else if (y > currentBand.yMax - SNAP_BUFFER) { finalY = currentBand.yMax - SNAP_BUFFER; needsSnap = true; }
               }
             }
-          }}
-          onNodeDragStart={(_, node) => store.setSelectedNodeId(node.id)}
-          onNodeDragStop={(_, node) => {
-            if ((node.data as CanvasNodeData).tier_id === FOUNDATIONAL_TIER_ID) {
-              // Finalize positions on drop
-              const foundationals = store.nodes.filter(n => n.data.tier_id === FOUNDATIONAL_TIER_ID);
-              const sorted = [...foundationals].sort((a, b) => {
-                const rowDiff = a.position.y - b.position.y;
-                if (Math.abs(rowDiff) > 50) return rowDiff;
-                return a.position.x - b.position.x;
-              });
 
-              const positionUpdates = sorted.map((n, index) => {
-                const ideal = foundationPosition(index, foundationals.length, store.tiers, store.tierHeight);
-                return { id: n.id, type: "position" as const, position: { x: ideal.x, y: ideal.y } };
-              });
-
-              store.onNodesChange(positionUpdates);
-
-              // Persist all foundational nodes
-              sorted.forEach((n, index) => {
-                const ideal = foundationPosition(index, foundationals.length, store.tiers, store.tierHeight);
-                void actions.patchNode(n.id, { x_position: ideal.x, y_position: ideal.y, tier_id: FOUNDATIONAL_TIER_ID });
-              });
-              return;
+            if (needsSnap) {
+              store.onNodesChange([{ id: nodeId, type: 'position', position: { x: node.position.x, y: finalY } }]);
             }
+
             void actions.patchNode(node.id, {
               x_position: node.position.x,
-              y_position: node.position.y,
-              tier_id: tierFromY(node.position.y, store.tiers, store.tierHeight),
+              y_position: finalY,
+              tier_id: finalTierId,
             });
           }}
           onNodeClick={(_, node) => {
@@ -344,12 +484,6 @@ function CanvasInner({ system, nodes, edges }: Props) {
           onPaneClick={(event) => {
             store.setSelectedNodeId(null);
             store.setInspectorOpen(false);
-            if (event.detail === 2) {
-              const instance = flowInstanceRef.current;
-              if (!instance) return;
-              const position = instance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-              void actions.createNode(position.x, position.y);
-            }
           }}
           onConnect={(connection) => store.setPendingConnection(connection)}
           onInit={(instance) => {
@@ -478,7 +612,7 @@ function CanvasInner({ system, nodes, edges }: Props) {
                   }}
                 />
                 <label htmlFor="dontAskAgain" className="type-small text-muted/80 cursor-pointer select-none">
-                  Don't ask me again
+                  Don&apos;t ask me again
                 </label>
               </div>
 

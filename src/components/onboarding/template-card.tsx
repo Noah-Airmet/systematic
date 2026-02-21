@@ -40,12 +40,9 @@ export function TemplateCard({ template, systemId }: TemplateCardProps) {
     };
 
     return (
-        <div className="relative group rounded-2xl border border-[#2c3a54] bg-[#0b1220]/80 p-6 backdrop-blur transition-all duration-300 hover:border-[#4c6aa1] hover:bg-[#111b2f] hover:shadow-[0_8px_30px_rgba(76,106,161,0.15)] flex flex-col h-full overflow-hidden">
-            {/* Decorative background glow */}
-            <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-blue-500/10 blur-[50px] transition-all group-hover:bg-blue-400/20" />
-
+        <div className="relative group rounded-2xl border border-[#2c3a54]/60 bg-[#0b1220]/60 p-6 backdrop-blur transition-all duration-300 hover:border-[#4c6aa1]/80 hover:bg-[#111b2f]/80 flex flex-col h-full overflow-hidden">
             <div className="flex-1 relative z-10">
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e293b] border border-[#334155] text-blue-400 group-hover:text-blue-300 group-hover:scale-110 transition-transform">
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e293b]/60 border border-[#334155]/60 text-blue-400 group-hover:text-blue-300 transition-colors">
                     <BookOpen className="h-5 w-5" />
                 </div>
 
@@ -72,10 +69,10 @@ export function TemplateCard({ template, systemId }: TemplateCardProps) {
                 </div>
             </div>
 
-            <div className="mt-auto pt-4 border-t border-[#2c3a54]/50 relative z-10">
+            <div className="mt-auto pt-4 border-t border-[#2c3a54]/30 relative z-10">
                 <Button
                     onClick={handleApplyTemplate}
-                    className="w-full bg-[#1e293b] hover:bg-[#2d3b55] text-white border border-[#334155] transition-all group-hover:border-blue-500/50 group-hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                    className="w-full bg-[#1e293b]/50 hover:bg-[#2d3b55]/80 text-white border border-[#334155]/50 transition-all font-medium"
                     disabled={isLoading}
                 >
                     {isLoading ? (
