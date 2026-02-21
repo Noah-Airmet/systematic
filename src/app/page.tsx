@@ -82,6 +82,12 @@ export default async function Home() {
                 </button>
               </form>
               <Link
+                href="/auth/sign-in"
+                className="rounded-full border border-[var(--border)] bg-[rgba(186,207,255,0.08)] px-6 py-3 text-sm font-semibold text-[#d9e5ff] backdrop-blur-md transition hover:bg-[rgba(186,207,255,0.16)]"
+              >
+                Sign In
+              </Link>
+              <Link
                 href="/auth/sign-up"
                 className="rounded-full border border-[#8eb3ff] bg-[linear-gradient(120deg,#6ea2ff,#8195ff)] px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_35px_rgba(64,113,255,0.35)] transition hover:translate-y-[-1px] hover:brightness-110"
               >

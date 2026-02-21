@@ -38,13 +38,11 @@ export default async function SignInPage({
             Create one
           </Link>
         </p>
-        {process.env.NODE_ENV !== "production" ? (
-          <form action={continueWithoutAccountAction} className="mt-3">
-            <Button type="submit" variant="secondary" className="w-full">
-              Continue without an account
-            </Button>
-          </form>
-        ) : null}
+        <form action={continueWithoutAccountAction} className="mt-3">
+          <Button type="submit" variant="secondary" className="w-full">
+            Continue without an account
+          </Button>
+        </form>
       </div>
     </main>
   );
