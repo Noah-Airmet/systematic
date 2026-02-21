@@ -26,7 +26,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return json({ error: "Node not found" }, { status: 404 });
     }
 
-    if (current.is_locked && parsed.data.tier_id) {
+    if (current.is_locked && parsed.data.tier_id && parsed.data.tier_id !== current.tier_id) {
       return json({ error: "Locked nodes cannot change tier" }, { status: 400 });
     }
 
@@ -43,21 +43,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const payload: Record<string, unknown> = { ...parsed.data };
+
     if (shouldClearValidationOnNodePatch(parsed.data)) {
       payload.validation_status = null;
       payload.validation_critique = null;
     }
 
-    const { data: node, error } = await supabase
+    if (Object.keys(payload).length === 0) {
+      return json({ node: current });
+    }
+
+    const { data: nodesData, error } = await supabase
       .from("nodes")
       .update(payload)
       .eq("id", id)
-      .select("*")
-      .single();
+      .select("*");
 
-    if (error || !node) {
-      return json({ error: error?.message ?? "Failed to update node" }, { status: 500 });
+    if (error || !nodesData || nodesData.length === 0) {
+      console.error("DEBUG PATCH ERROR:", error, "Data:", nodesData);
+      require("fs").appendFileSync("debug-patch-errors.txt", JSON.stringify({ error, payload, id }) + "\n");
+      return json({ error: error?.message ?? "Failed to update node", dbError: error, payloadUsed: payload, dataRaw: nodesData }, { status: 500 });
     }
+
+    const node = nodesData[0];
 
     return json({ node });
   } catch (error) {

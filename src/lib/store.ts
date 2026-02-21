@@ -10,7 +10,7 @@ import {
     addEdge as rfAddEdge,
 } from "reactflow";
 import { DefinitionRow, EdgeRow, InferenceType, NodeRow, RelationshipType, SystemTier, Presuppositions } from "./types";
-import { FOUNDATIONAL_TIER_ID } from "./tiers";
+import { buildTierBands, FOUNDATIONAL_TIER_ID } from "./tiers";
 
 export type CanvasNodeData = {
     title: string;
@@ -54,6 +54,8 @@ export type CanvasState = {
     inspectorOpen: boolean;
     sidebarWidth: number;
     sidebarCollapsed: boolean;
+    nodeToDelete: string | null;
+    tierHeight: number;
 
     // Actions
     init: (systemId: string, title: string, initialTiers: SystemTier[], initialNodes: Node<CanvasNodeData>[], initialEdges: Edge[], presuppositions: Presuppositions) => void;
@@ -68,6 +70,8 @@ export type CanvasState = {
     setInspectorOpen: (open: boolean) => void;
     setSidebarWidth: (width: number) => void;
     setSidebarCollapsed: (collapsed: boolean) => void;
+    setNodeToDelete: (id: string | null) => void;
+    setTierHeight: (height: number) => void;
 
     // Definitions
     setDefinitions: (definitions: DefinitionRow[]) => void;
@@ -88,12 +92,23 @@ export type CanvasState = {
     removeEdge: (id: string) => void;
 };
 
-export function toFlowNodes(rows: NodeRow[], _tiers?: SystemTier[]): Node<CanvasNodeData>[] {
+export function toFlowNodes(rows: NodeRow[], tiers?: SystemTier[], tierHeight: number = 250): Node<CanvasNodeData>[] {
+    const bands = tiers ? buildTierBands(tiers, tierHeight) : null;
+    const foundationBand = bands?.find((t) => t.id === FOUNDATIONAL_TIER_ID);
+
     return rows.map((node) => ({
         id: node.id,
         type: node.tier_id === FOUNDATIONAL_TIER_ID ? "foundation" : "doctrine",
         position: { x: node.x_position, y: node.y_position },
         draggable: true,
+        ...(node.tier_id === FOUNDATIONAL_TIER_ID && foundationBand
+            ? {
+                extent: [
+                    [-10000, foundationBand.yMin],
+                    [10000, foundationBand.yMax - 90], // node height allowance
+                ],
+            }
+            : {}),
         data: {
             title: node.title,
             description: node.description,
@@ -148,6 +163,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     inspectorOpen: false,
     sidebarWidth: 280,
     sidebarCollapsed: false,
+    nodeToDelete: null,
+    tierHeight: 250,
 
     init: (systemId, title, initialTiers, initialNodes, initialEdges, presuppositions) => set({
         systemId,
@@ -169,6 +186,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     setInspectorOpen: (inspectorOpen) => set({ inspectorOpen }),
     setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
     setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+    setNodeToDelete: (nodeToDelete) => set({ nodeToDelete }),
+    setTierHeight: (tierHeight) => set({ tierHeight }),
 
     // Definitions
     setDefinitions: (definitions) => set({ definitions }),

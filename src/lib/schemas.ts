@@ -34,7 +34,7 @@ export const tierSchema = z.object({
 });
 
 export const createSystemSchema = z.object({
-  title: z.string().min(1).max(120),
+  title: z.string().min(1).max(120).optional(),
 });
 
 export const patchPresuppositionsSchema = z.object({

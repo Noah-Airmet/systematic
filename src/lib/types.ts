@@ -17,11 +17,15 @@ export type InferenceType =
 export type EpistemicSource =
   | "canonical_scripture"
   | "general_conference"
-  | "historical_primary_source"
-  | "philosophical_argument"
+  | "scripture" // LDS Standard works
+  | "prophetic_teaching"
+  | "theological_reasoning"
+  | "historical_record"
+  | "comparative_religion"
   | "personal_revelation"
-  | "logical_deduction"
-  | "scholarly_consensus";
+  | "scholarly_consensus" // Added back from previous for Ostler
+  | "scriptural_exegesis" // Added back from previous for Ostler
+  | "philosophical_argument"; // Added back from previous for Ostler
 
 export type DefinitionRow = {
   id: string;

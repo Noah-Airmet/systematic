@@ -7,13 +7,13 @@ import { cn } from "@/lib/utils";
 function getConfidenceStyles(confidence: CanvasNodeData["confidence"]) {
     switch (confidence) {
         case "settled":
-            return "border-accent ring-1 ring-accent/30 bg-glass text-foreground";
+            return "border-accent ring-1 ring-accent/30 text-foreground";
         case "exploring":
-            return "border-dashed border-accent/60 bg-glass/80 text-foreground/90";
+            return "border-dashed border-accent/60 text-foreground/90";
         case "troubled":
             return "border-danger ring-1 ring-danger/40 animate-pulse bg-danger/10 text-foreground";
         default:
-            return "border-border bg-glass text-foreground/90";
+            return "border-border text-foreground/90";
     }
 }
 
@@ -37,7 +37,8 @@ export function FoundationNode({ data, selected }: NodeProps<CanvasNodeData>) {
                 selected ? "ring-2 ring-accent border-accent/50 shadow-glow" : "border-white/10"
             )}
         >
-            <Handle type="target" position={Position.Top} className="opacity-0 transition-opacity hover:opacity-100 bg-accent w-3 h-3 border-none" />
+            <Handle id="top" type="target" position={Position.Top} className="opacity-0 transition-opacity hover:opacity-100 bg-accent w-3 h-3 border-none" />
+            <Handle id="left" type="target" position={Position.Left} className="opacity-0 transition-opacity hover:opacity-100 bg-accent w-3 h-3 border-none" />
             <div className="line-clamp-2 text-[13px] font-semibold tracking-tight text-white leading-snug drop-shadow-md">
                 {data.title}
             </div>
@@ -48,7 +49,8 @@ export function FoundationNode({ data, selected }: NodeProps<CanvasNodeData>) {
                 <div className="absolute bottom-1 right-2 text-white/30 text-[10px]">🔒</div>
             )}
             {getValidationIcon(data.validation_status)}
-            <Handle type="source" position={Position.Bottom} className="w-8 h-1.5 rounded-full border-none bg-accent/30 hover:bg-accent hover:shadow-glow transition-all" />
+            <Handle id="right" type="source" position={Position.Right} className="opacity-0 transition-opacity hover:opacity-100 bg-accent w-3 h-3 border-none" />
+            <Handle id="bottom" type="source" position={Position.Bottom} className="w-8 h-1.5 rounded-full border-none bg-accent/30 hover:bg-accent hover:shadow-glow transition-all" />
         </div>
     );
 }
@@ -59,12 +61,14 @@ export function DoctrineNode({ data, selected }: NodeProps<CanvasNodeData>) {
     return (
         <div
             className={cn(
-                "relative flex h-[130px] w-[130px] flex-col items-center justify-center rounded-full border p-5 text-center transition-all duration-300 backdrop-blur-md",
+                "relative flex h-[130px] w-[130px] flex-col items-center justify-center rounded-full border p-5 text-center transition-all duration-300",
+                "liquid-panel-strong shadow-[0_4px_24px_rgba(0,0,0,0.6)]",
                 confidenceStyles,
-                selected ? "ring-2 ring-accent border-accent shadow-glow scale-105" : "hover:border-accent/50 hover:bg-glass-strong"
+                selected ? "ring-2 ring-accent border-accent shadow-glow scale-105" : "hover:border-accent/50"
             )}
         >
-            <Handle type="target" position={Position.Top} className="opacity-0 transition-opacity hover:opacity-100 bg-accent w-3 h-3 border-none" />
+            <Handle id="top" type="target" position={Position.Top} className="opacity-0 transition-opacity hover:opacity-100 bg-accent w-3 h-3 border-none" />
+            <Handle id="left" type="target" position={Position.Left} className="opacity-0 transition-opacity hover:opacity-100 bg-accent w-3 h-3 border-none" />
             <span className="line-clamp-4 text-xs font-medium leading-relaxed tracking-wide drop-shadow-sm">
                 {data.title}
             </span>
@@ -74,7 +78,8 @@ export function DoctrineNode({ data, selected }: NodeProps<CanvasNodeData>) {
                 </div>
             )}
             {getValidationIcon(data.validation_status)}
-            <Handle type="source" position={Position.Bottom} className="w-8 h-1.5 rounded-full border-none bg-accent/30 hover:bg-accent hover:shadow-glow transition-all" />
+            <Handle id="right" type="source" position={Position.Right} className="opacity-0 transition-opacity hover:opacity-100 bg-accent w-3 h-3 border-none" />
+            <Handle id="bottom" type="source" position={Position.Bottom} className="w-8 h-1.5 rounded-full border-none bg-accent/30 hover:bg-accent hover:shadow-glow transition-all" />
         </div>
     );
 }

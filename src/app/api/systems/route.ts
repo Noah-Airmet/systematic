@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       .from("systems")
       .insert({
         user_id: user.id,
-        title: parsed.data.title,
+        title: parsed.data.title ?? "Untitled System",
         presuppositions: DEFAULT_PRESUPPOSITIONS,
         tiers: defaultSystemTiers(),
       })

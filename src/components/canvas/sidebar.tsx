@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { FOUNDATIONAL_TIER_ID } from "@/lib/tiers";
 import { useCanvasStore, CanvasState } from "@/lib/store";
 import { SystemTier } from "@/lib/types";
@@ -85,11 +86,6 @@ function SortableTier({ tier, idx, isFoundation, store, actions }: { tier: Syste
                     className="h-7 bg-transparent border-transparent px-1 focus:bg-black/20 focus:border-accent/50 text-[13px] tracking-wide font-medium placeholder:text-muted/50 transition-all z-10 w-full"
                 />
             </div>
-            {isFoundation && (
-                <div className="type-small text-[10px] text-muted/60 absolute bottom-1 right-2 pointer-events-none">
-                    Pinned Base
-                </div>
-            )}
         </div>
     );
 }
@@ -366,6 +362,27 @@ export function CanvasSidebar() {
                         ))}
                     </SortableContext>
                 </DndContext>
+            </div>
+
+            <div className="mt-6 border-t border-border/30 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="type-label text-muted tracking-widest">Tier Spacing</h3>
+                    <span className="text-[10px] text-muted-foreground font-medium bg-black/30 px-1.5 py-0.5 rounded">{store.tierHeight}px</span>
+                </div>
+                <Slider
+                    value={[store.tierHeight]}
+                    min={150}
+                    max={600}
+                    step={10}
+                    onValueChange={(val: number[]) => {
+                        const newHeight = val[0];
+                        store.setTierHeight(newHeight);
+                        // Force a React Flow redraw for the nodes/extensions
+                        const nextNodes = store.nodes.slice();
+                        store.onNodesChange(nextNodes.map(n => ({ id: n.id, type: "position" as const, position: n.position })));
+                    }}
+                    className="my-3"
+                />
             </div>
 
             <DefinitionsSection />

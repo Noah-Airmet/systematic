@@ -1,6 +1,5 @@
 import { SystemTier, TierId } from "@/lib/types";
 
-export const CANVAS_HEIGHT = 850;
 export const FOUNDATIONAL_TIER_ID = "foundational_core";
 
 export type TierBand = {
@@ -59,7 +58,7 @@ export function normalizeSystemTiers(tiers: unknown): SystemTier[] {
 
   const marked = clean.map((tier) =>
     tier.id === FOUNDATIONAL_TIER_ID
-      ? { ...tier, name: "Foundational Dogma", is_foundational: true }
+      ? { ...tier, is_foundational: true }
       : { ...tier, is_foundational: false },
   );
 
@@ -69,16 +68,13 @@ export function normalizeSystemTiers(tiers: unknown): SystemTier[] {
   return reindex([foundation, ...withoutFoundation]);
 }
 
-export function buildTierBands(tiers: SystemTier[], canvasHeight = CANVAS_HEIGHT): TierBand[] {
+export function buildTierBands(tiers: SystemTier[], tierHeight: number = 250): TierBand[] {
   const normalized = normalizeSystemTiers(tiers);
   const top = 40;
-  const bottom = 40;
-  const usable = canvasHeight - top - bottom;
-  const heightPerTier = usable / normalized.length;
 
   return normalized.map((tier, index) => {
-    const yMin = top + index * heightPerTier;
-    const yMax = yMin + heightPerTier;
+    const yMin = top + index * tierHeight;
+    const yMax = yMin + tierHeight;
     return {
       id: tier.id,
       name: tier.name,
@@ -91,8 +87,8 @@ export function buildTierBands(tiers: SystemTier[], canvasHeight = CANVAS_HEIGHT
   });
 }
 
-export function tierFromY(y: number, tiers: SystemTier[]): TierId {
-  const bands = buildTierBands(tiers);
+export function tierFromY(y: number, tiers: SystemTier[], tierHeight: number = 250): TierId {
+  const bands = buildTierBands(tiers, tierHeight);
   const band = bands.find((t) => y >= t.yMin && y < t.yMax);
   return band?.id ?? bands[bands.length - 1]?.id ?? FOUNDATIONAL_TIER_ID;
 }

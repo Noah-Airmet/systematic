@@ -48,18 +48,19 @@ export async function POST(request: Request) {
       epistemic_sources: Array.isArray(d.epistemic_sources) ? d.epistemic_sources : [],
     };
 
-    const { data: node, error } = await supabase
+    const { data: nodesData, error } = await supabase
       .from("nodes")
       .insert(insertPayload)
-      .select("*")
-      .single();
+      .select("*");
 
-    if (error || !node) {
+    if (error || !nodesData || nodesData.length === 0) {
+      console.error("DEBUG INSERT ERROR:", error, "Data:", nodesData);
       return json(
-        { error: error?.message ?? "Failed to create node", details: error?.details },
+        { error: error?.message ?? "Failed to create node", details: error?.details, data: nodesData },
         { status: 500 }
       );
     }
+    const node = nodesData[0];
 
     track("node_created", { user_id: user.id, system_id: node.system_id });
 

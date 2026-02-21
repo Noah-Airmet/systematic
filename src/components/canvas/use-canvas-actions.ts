@@ -90,6 +90,8 @@ export function useCanvasActions() {
                 epistemic_sources: newNode.epistemic_sources ?? [],
             },
         });
+        store.setSelectedNodeId(newNode.id);
+        store.setInspectorOpen(true);
         store.setSaveState("Saved");
     }, [store]);
 
@@ -116,22 +118,52 @@ export function useCanvasActions() {
             return;
         }
         await reloadGraph();
+        store.setSelectedNodeId(data.node.id);
+        store.setInspectorOpen(true);
         store.setSaveState("Saved");
     }, [store, reloadGraph]);
 
     const deleteNode = useCallback(async (nodeId: string) => {
-        if (!window.confirm("Delete this node and its edges?")) return;
         store.setSaveState("Saving...");
+        store.setNodeToDelete(null); // Clear pending delete state
+
+        // Optimistic UI update - immediately remove the node visually
+        store.removeNode(nodeId);
+
         const response = await fetch(`/api/nodes/${nodeId}`, { method: "DELETE" });
         if (!response.ok) {
             const data = await response.json();
             store.setError(data.error ?? "Failed to delete node");
             store.setSaveState("Save failed");
+            // If it failed, reload graph to restore the deleted node
+            await reloadGraph();
             return;
         }
         await reloadGraph();
         store.setSaveState("Saved");
     }, [store, reloadGraph]);
+
+    const requestNodeDeletion = useCallback((nodeId: string) => {
+        const node = store.nodes.find(n => n.id === nodeId);
+        if (!node) return;
+
+        const hideWarning = localStorage.getItem("systematic_hide_delete_warning") === "true";
+        const isNodeEmpty =
+            (node.data.title === "New node" || node.data.title === "New core truth" || !node.data.title) &&
+            !node.data.description &&
+            !node.data.notes &&
+            !node.data.grounds &&
+            !node.data.warrant &&
+            !node.data.backing &&
+            !node.data.rebuttal;
+
+        if (hideWarning || isNodeEmpty) {
+            void deleteNode(nodeId);
+        } else {
+            store.setNodeToDelete(nodeId);
+        }
+    }, [store, deleteNode]);
+
 
     const patchNode = useCallback(async (nodeId: string, patch: Record<string, unknown>) => {
         store.setSaveState("Saving...");
@@ -375,6 +407,7 @@ export function useCanvasActions() {
         createNode,
         addFoundationalNode,
         deleteNode,
+        requestNodeDeletion,
         patchNode,
         persistEdge,
         patchEdge,

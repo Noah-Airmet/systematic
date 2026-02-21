@@ -185,11 +185,15 @@ export function NodeInspector({ flowRef, flowInstanceRef }: Props) {
     const epistemicSourceOptions: Array<{ value: EpistemicSource; label: string }> = [
         { value: "canonical_scripture", label: "Scripture" },
         { value: "general_conference", label: "Conference" },
-        { value: "historical_primary_source", label: "Historical Source" },
+        { value: "scripture", label: "LDS Standard Works" },
+        { value: "prophetic_teaching", label: "Prophetic Teaching" },
+        { value: "historical_record", label: "Historical Record" },
+        { value: "theological_reasoning", label: "Theological Reasoning" },
         { value: "philosophical_argument", label: "Philosophical" },
+        { value: "comparative_religion", label: "Comparative Religion" },
         { value: "personal_revelation", label: "Personal Revelation" },
-        { value: "logical_deduction", label: "Logical Deduction" },
         { value: "scholarly_consensus", label: "Scholarly" },
+        { value: "scriptural_exegesis", label: "Scriptural Exegesis" },
     ];
 
     const availableDefinitions = store.definitions?.filter(def => !linkedDefinitions.some(ld => ld.id === def.id)) ?? [];
@@ -203,23 +207,6 @@ export function NodeInspector({ flowRef, flowInstanceRef }: Props) {
             <div className="mb-6 flex items-center justify-between">
                 <h2 className="type-h2 bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Inspector</h2>
                 <div className="flex gap-2">
-                    <Button
-                        type="button"
-                        variant="primary"
-                        className="bg-accent text-accent-foreground hover:bg-accent/80 transition-colors shadow-glow"
-                        onClick={() => {
-                            const instance = flowInstanceRef.current;
-                            const bounds = flowRef.current?.getBoundingClientRect();
-                            if (!instance || !bounds) return;
-                            const center = instance.screenToFlowPosition({
-                                x: bounds.left + bounds.width / 2,
-                                y: bounds.top + bounds.height / 2
-                            });
-                            void actions.createNode(center.x, center.y);
-                        }}
-                    >
-                        + Node
-                    </Button>
                     <Button
                         type="button"
                         variant="glass"
@@ -441,8 +428,8 @@ export function NodeInspector({ flowRef, flowInstanceRef }: Props) {
                                             type="button"
                                             onClick={() => toggleEpistemicSource(option.value)}
                                             className={`px-3 py-2 rounded-full border text-sm transition-colors ${epistemicSources.includes(option.value)
-                                                    ? "bg-accent/20 border-accent/40 text-accent"
-                                                    : "bg-glass border-border/30 text-muted"
+                                                ? "bg-accent/20 border-accent/40 text-accent"
+                                                : "bg-glass border-border/30 text-muted"
                                                 }`}
                                         >
                                             {option.label}
@@ -549,7 +536,7 @@ export function NodeInspector({ flowRef, flowInstanceRef }: Props) {
                             variant="primary"
                             className="w-full bg-danger/10 text-danger border border-danger/20 hover:bg-danger hover:text-white transition-colors"
                             disabled={Boolean(selectedNode.data.is_locked)}
-                            onClick={() => void actions.deleteNode(selectedNode.id)}
+                            onClick={() => void actions.requestNodeDeletion(selectedNode.id)}
                         >
                             Delete Node
                         </Button>
