@@ -126,7 +126,7 @@ function CanvasInner({ system, nodes, edges }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const gridCols = store.inspectorOpen ? "280px 1fr 360px" : "280px 1fr 56px";
+  const gridCols = store.inspectorOpen ? "280px 1fr 360px" : "280px 1fr";
 
   // If store not loaded yet, don't render graph
   if (!store.systemId) return <div className="h-screen w-screen bg-background flex justify-center items-center text-accent animate-pulse">Loading Theology...</div>;
@@ -164,7 +164,7 @@ function CanvasInner({ system, nodes, edges }: Props) {
               </Button>
             </Link>
             <a href={`/api/systems/${store.systemId}/export`}>
-              <Button type="button" variant="secondary" className="bg-accent text-accent-foreground hover:bg-accent/80 border-accent/20 transition-all shadow-glow">
+              <Button type="button" variant="secondary" className="bg-white text-black hover:bg-white/90 border-transparent font-medium transition-all shadow-glow">
                 Export System
               </Button>
             </a>

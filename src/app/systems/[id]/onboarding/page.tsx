@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { DEFAULT_PRESUPPOSITIONS } from "@/lib/constants";
 import { createSupabaseServerClient } from "@/lib/supabase";
 import { OnboardingForm } from "@/components/onboarding/onboarding-form";
+import { AiEdgeGlow } from "@/components/ui/ai-edge-glow";
 
 export default async function OnboardingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,7 +26,8 @@ export default async function OnboardingPage({ params }: { params: Promise<{ id:
   }
 
   return (
-    <main className="min-h-screen px-6 py-10">
+    <main className="min-h-screen px-6 py-10 relative">
+      <AiEdgeGlow />
       <div className="mx-auto w-full max-w-5xl">
         <div className="liquid-panel-strong mb-6 rounded-3xl px-8 py-7">
           <h1 className="type-h1 mb-2">Presupposition Onboarding</h1>

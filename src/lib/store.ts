@@ -24,7 +24,7 @@ export type CanvasNodeData = {
     validation_critique: string | null;
 };
 
-type CanvasState = {
+export type CanvasState = {
     // Data
     systemId: string | null;
     systemTitle: string | null;

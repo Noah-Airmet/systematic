@@ -21,18 +21,7 @@ export function NodeInspector({ flowRef, flowInstanceRef }: Props) {
     const selectedNode = store.nodes.find((n) => n.id === store.selectedNodeId) ?? null;
 
     if (!store.inspectorOpen) {
-        return (
-            <aside className="border-l border-border bg-background p-2">
-                <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full bg-glass hover:bg-card border-border shadow-sm transition-all"
-                    onClick={() => store.setInspectorOpen(true)}
-                >
-                    Inspector
-                </Button>
-            </aside>
-        );
+        return null;
     }
 
     return (

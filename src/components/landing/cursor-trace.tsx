@@ -30,11 +30,11 @@ export function CursorTrace() {
 
     let frame = 0;
 
-    // Configurable Physics
-    const INTERACTION_RADIUS = 250;
-    const REPULSION_FORCE = 0.6;
-    const SPRING = 0.08;
-    const FRICTION = 0.75;
+    // Configurable Physics - Tuned for smooth, calming wave
+    const INTERACTION_RADIUS = 180;
+    const REPULSION_FORCE = 0.25;
+    const SPRING = 0.05;
+    const FRICTION = 0.85;
 
     const initParticles = () => {
       const p = [];
@@ -104,8 +104,8 @@ export function CursorTrace() {
 
           // Normalize direction vector and apply force
           const angle = Math.atan2(dy, dx);
-          p.vx += Math.cos(angle) * force * REPULSION_FORCE * 15;
-          p.vy += Math.sin(angle) * force * REPULSION_FORCE * 15;
+          p.vx += Math.cos(angle) * force * REPULSION_FORCE * 6;
+          p.vy += Math.sin(angle) * force * REPULSION_FORCE * 6;
         }
 
         // Apply Spring Force (pulling back to origin)
@@ -131,14 +131,6 @@ export function CursorTrace() {
           const visualIntensity = Math.min(displacement / 25, 1);
           size = 1.0 + (visualIntensity * 2.5);
           opacity = 0.15 + (visualIntensity * 0.7);
-
-          // Draw a subtle connecting line back to origin for a 3D stretching effect
-          ctx.beginPath();
-          ctx.moveTo(p.ox, p.oy);
-          ctx.lineTo(p.x, p.y);
-          ctx.strokeStyle = `rgba(180, 200, 255, ${opacity * 0.3})`;
-          ctx.lineWidth = 1;
-          ctx.stroke();
         }
 
         // Draw the point itself

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Bodoni_Moda } from "next/font/google";
 import { CursorTrace } from "@/components/landing/cursor-trace";
+import { AiEdgeGlow } from "@/components/ui/ai-edge-glow";
 
 const bodoni = Bodoni_Moda({
   subsets: ["latin"],
@@ -11,6 +12,7 @@ const bodoni = Bodoni_Moda({
 export default function Home() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden text-[#ecf1ff]">
+      <AiEdgeGlow />
       <CursorTrace />
       <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_20%_20%,rgba(126,147,255,0.26),transparent_45%),radial-gradient(circle_at_80%_70%,rgba(80,177,255,0.2),transparent_45%)]" />
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-8 px-6 text-center">
