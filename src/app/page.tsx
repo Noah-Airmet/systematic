@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bodoni_Moda } from "next/font/google";
 import { CursorTrace } from "@/components/landing/cursor-trace";
 import { AiEdgeGlow } from "@/components/ui/ai-edge-glow";
+import { Layers, Network, Scale } from "lucide-react";
 
 const bodoni = Bodoni_Moda({
   subsets: ["latin"],
@@ -20,11 +21,42 @@ export default function Home() {
         <h1 className={`${bodoni.className} text-[clamp(4rem,16vw,10rem)] leading-[0.92] tracking-[0.06em] drop-shadow-[0_18px_35px_rgba(124,151,235,0.4)]`}>
           Systematic
         </h1>
-        <div className="liquid-panel max-w-2xl rounded-3xl px-7 py-5">
-          <p className="type-body text-[#b6c6e7]">
-            Build convictions as structure. Map doctrine as a living graph. Stress-test consistency without losing
-            nuance.
-          </p>
+        <div className="grid w-full max-w-5xl grid-cols-1 gap-6 md:grid-cols-3 mt-2 mb-4">
+          <div className="group relative flex flex-col items-center gap-4 rounded-3xl border border-white/5 bg-white/5 p-8 text-center backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:bg-white/10 hover:shadow-[0_8px_30px_rgba(124,151,235,0.15)]">
+            <div className="rounded-full bg-[#8eb3ff]/10 p-4 text-[#8f9dbf] transition-colors group-hover:bg-[#8eb3ff]/20 group-hover:text-[#6ea2ff]">
+              <Layers className="h-7 w-7" />
+            </div>
+            <div>
+              <h3 className="mb-2 font-semibold text-[#d9e5ff]">Build Structure</h3>
+              <p className="text-sm leading-relaxed text-[#8f9dbf]">
+                Build convictions as firm architectural structure rather than isolated thoughts.
+              </p>
+            </div>
+          </div>
+
+          <div className="group relative flex flex-col items-center gap-4 rounded-3xl border border-white/5 bg-white/5 p-8 text-center backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:bg-white/10 hover:shadow-[0_8px_30px_rgba(124,151,235,0.15)]">
+            <div className="rounded-full bg-[#8eb3ff]/10 p-4 text-[#8f9dbf] transition-colors group-hover:bg-[#8eb3ff]/20 group-hover:text-[#6ea2ff]">
+              <Network className="h-7 w-7" />
+            </div>
+            <div>
+              <h3 className="mb-2 font-semibold text-[#d9e5ff]">Map Doctrine</h3>
+              <p className="text-sm leading-relaxed text-[#8f9dbf]">
+                Connect the dots. Map doctrine and theology as a living, interconnected graph.
+              </p>
+            </div>
+          </div>
+
+          <div className="group relative flex flex-col items-center gap-4 rounded-3xl border border-white/5 bg-white/5 p-8 text-center backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:bg-white/10 hover:shadow-[0_8px_30px_rgba(124,151,235,0.15)]">
+            <div className="rounded-full bg-[#8eb3ff]/10 p-4 text-[#8f9dbf] transition-colors group-hover:bg-[#8eb3ff]/20 group-hover:text-[#6ea2ff]">
+              <Scale className="h-7 w-7" />
+            </div>
+            <div>
+              <h3 className="mb-2 font-semibold text-[#d9e5ff]">Stress-Test</h3>
+              <p className="text-sm leading-relaxed text-[#8f9dbf]">
+                Stress-test consistency and theological soundness without losing nuance.
+              </p>
+            </div>
+          </div>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
           <Link

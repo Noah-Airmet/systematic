@@ -13,11 +13,11 @@ import {
   ReactFlowInstance,
   useStore
 } from "reactflow";
-import { EdgeRow, NodeRow, RelationshipType, SystemRow, SystemTier } from "@/lib/types";
+import { EdgeRow, NodeRow, RelationshipType, SystemRow } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { buildTierBands, FOUNDATIONAL_TIER_ID, tierFromY } from "@/lib/tiers";
-import { useCanvasStore, CanvasNodeData } from "@/lib/store";
+import { useCanvasStore, CanvasNodeData, toFlowNodes, toFlowEdges } from "@/lib/store";
 import { useCanvasActions } from "./use-canvas-actions";
 import { canvasNodeTypes } from "./nodes";
 import { NodeInspector } from "./inspector";
@@ -30,36 +30,6 @@ type Props = {
   edges: EdgeRow[];
 };
 
-function toFlowNodes(rows: NodeRow[], tiers: SystemTier[]) {
-  return rows.map((node) => ({
-    id: node.id,
-    type: node.tier_id === FOUNDATIONAL_TIER_ID ? "foundation" : "doctrine",
-    position: { x: node.x_position, y: node.y_position },
-    draggable: node.tier_id !== FOUNDATIONAL_TIER_ID,
-    data: {
-      title: node.title,
-      description: node.description,
-      notes: node.notes,
-      tier_id: node.tier_id,
-      is_locked: node.is_locked,
-      confidence: node.confidence,
-      scripture_refs: node.scripture_refs,
-      tags: node.tags,
-      validation_status: node.validation_status,
-      validation_critique: node.validation_critique,
-    },
-  }));
-}
-
-function toFlowEdges(rows: EdgeRow[]) {
-  return rows.map((edge) => ({
-    id: edge.id,
-    source: edge.source_node_id,
-    target: edge.target_node_id,
-    label: edge.relationship_type,
-    data: { relationship_type: edge.relationship_type },
-  }));
-}
 
 function TierBackgrounds() {
   const store = useCanvasStore();
@@ -90,7 +60,7 @@ function TierBackgrounds() {
               }}
             >
               <div
-                className="absolute bottom-4 type-label text-[11px] text-white/30 font-bold tracking-[0.2em]"
+                className="absolute bottom-4 type-label text-sm text-white/40 font-bold tracking-[0.2em]"
                 style={{ left: 50000 + textX, transform: `scale(${1 / tZoom})`, transformOrigin: 'bottom left' }}
               >
                 {tier.name.toUpperCase()}
@@ -218,6 +188,35 @@ function CanvasInner({ system, nodes, edges }: Props) {
           onConnect={(connection) => store.setPendingConnection(connection)}
           onInit={(instance) => {
             flowInstanceRef.current = instance;
+
+            // Determine horizontal bounds of existing nodes
+            const currentNodes = instance.getNodes();
+            let minX = -400;
+            let maxX = 400;
+
+            if (currentNodes.length > 0) {
+              minX = Math.min(...currentNodes.map(n => n.position.x));
+              maxX = Math.max(...currentNodes.map(n => n.position.x + 320)); // Assume ~320px node width
+            }
+
+            // Create target bounds that guarantee all tiers are visible while maintaining node readability
+            const boundsWidth = Math.max(maxX - minX + 200, 1000);
+            const centerX = (minX + maxX) / 2;
+
+            const targetBounds = {
+              x: centerX - boundsWidth / 2,
+              y: -40,
+              width: boundsWidth,
+              height: 900 // Reduced canvas height + padding
+            };
+
+            // Start slightly zoomed out and above for a "drop in" effect
+            instance.setViewport({ x: (typeof window !== 'undefined' ? window.innerWidth : 1200) / 2, y: -100, zoom: 0.3 });
+
+            // Smoothly animate to the correct framing with a more cinematic, slower pace
+            setTimeout(() => {
+              instance.fitBounds(targetBounds, { duration: 2400 });
+            }, 50);
           }}
           selectionOnDrag={false}
           selectNodesOnDrag={false}
@@ -225,7 +224,6 @@ function CanvasInner({ system, nodes, edges }: Props) {
           selectionKeyCode={null}
           panOnDrag
           nodesDraggable
-          fitView
           minZoom={0.2}
           maxZoom={1.5}
           defaultEdgeOptions={{

@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -80,14 +82,15 @@ export function NodeInspector({ flowRef, flowInstanceRef }: Props) {
                     <div className="space-y-1.5">
                         <label className="type-label text-muted">Confidence Level</label>
                         <Select
-                            value={selectedNode.data.confidence ?? "exploring"}
+                            value={selectedNode.data.confidence ?? ""}
                             onChange={(e) => {
-                                const conf = e.target.value as "settled" | "exploring" | "troubled" | null;
+                                const conf = (e.target.value || null) as "settled" | "exploring" | "troubled" | null;
                                 store.updateNodeData(selectedNode.id, { confidence: conf });
                                 void actions.patchNode(selectedNode.id, { confidence: conf });
                             }}
                             className="w-full bg-glass-strong border-border/50 focus:border-accent text-sm"
                         >
+                            <option value="">Not set</option>
                             <option value="settled">Settled</option>
                             <option value="exploring">Exploring</option>
                             <option value="troubled">Troubled</option>

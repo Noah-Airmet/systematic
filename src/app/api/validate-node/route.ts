@@ -6,15 +6,15 @@ import { filterNotFoundational } from "@/lib/presuppositions";
 import { VALIDATOR_DISCLAIMER } from "@/lib/constants";
 import { json } from "@/lib/utils";
 import { track } from "@/lib/telemetry";
-
-type ValidateRequest = {
-  system_id: string;
-  node_id: string;
-};
+import { validateNodeRequestSchema } from "@/lib/schemas";
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as ValidateRequest;
+    const bodyParsed = validateNodeRequestSchema.safeParse(await request.json());
+    if (!bodyParsed.success) {
+      return json({ error: "Invalid request: system_id and node_id must be valid UUIDs" }, { status: 400 });
+    }
+    const body = bodyParsed.data;
     const { supabase, user } = await requireUser();
 
     const usageDate = currentUsageDate();

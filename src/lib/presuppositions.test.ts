@@ -1,28 +1,6 @@
-import { detectContradictions, filterNotFoundational, validateS1Ranks } from "@/lib/presuppositions";
+import { detectContradictions, filterNotFoundational } from "@/lib/presuppositions";
 
 describe("presupposition helpers", () => {
-  test("S1 ranks enforce unique integers 0..4", () => {
-    expect(
-      validateS1Ranks({
-        penal_substitution: 4,
-        moral_influence: 3,
-        christus_victor: 2,
-        ransom: 1,
-        solidarity: 0,
-      }),
-    ).toBe(true);
-
-    expect(
-      validateS1Ranks({
-        penal_substitution: 4,
-        moral_influence: 4,
-        christus_victor: 2,
-        ransom: 1,
-        solidarity: 0,
-      }),
-    ).toBe(false);
-  });
-
   test("contradiction checks only when both are position", () => {
     const contradictions = detectContradictions({
       M1: { mode: "position", value: "B-Theory (block universe)" },

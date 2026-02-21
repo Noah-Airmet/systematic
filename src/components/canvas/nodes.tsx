@@ -1,11 +1,8 @@
+"use client";
+
 import { Handle, Position, NodeProps } from "reactflow";
 import { CanvasNodeData } from "@/lib/store";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-function cn(...inputs: (string | undefined | null | false)[]) {
-    return twMerge(clsx(inputs));
-}
+import { cn } from "@/lib/utils";
 
 function getConfidenceStyles(confidence: CanvasNodeData["confidence"]) {
     switch (confidence) {

@@ -4,10 +4,11 @@ export const VALIDATOR_DISCLAIMER =
   "This analysis reflects common philosophical and theological frameworks. It is not authoritative.";
 
 export const FOUNDATIONAL_NODES = [
-  "God exists.",
-  "Jesus Christ is the Savior.",
-  "Joseph Smith was a prophet.",
-  "Baptism is required.",
+  "God the Eternal Father is real.",
+  "Jesus Christ is the Son of God, the Savior and Redeemer of the world.",
+  "The Holy Ghost is real.",
+  "The Atonement of Jesus Christ is real.",
+  "The Gospel of Jesus Christ has been restored.",
 ];
 
 export const DEFAULT_PRESUPPOSITIONS: Presuppositions = {
@@ -112,5 +113,21 @@ export const CONTRADICTION_PAIRS = [
     message:
       "Exhaustive foreknowledge and libertarian free will is a known philosophical tension.",
     check: (a: string, b: string) => a === "Exhaustive foreknowledge" && b === "Libertarian free will",
+  },
+  {
+    left: "T1",
+    right: "M1",
+    severity: "warning",
+    message:
+      "Classical Theism fits more naturally with B-Theory's block universe. A dynamic present (A-Theory) is difficult to reconcile with a God who exists entirely outside temporal sequence.",
+    check: (a: string, b: string) => a === "Classical Theism" && b === "A-Theory (dynamic present)",
+  },
+  {
+    left: "E3",
+    right: "T3",
+    severity: "warning",
+    message:
+      "Most LDS prophets have taught or implied exhaustive foreknowledge. A high-inerrancy view makes significant departure from this position difficult to justify.",
+    check: (a: string, b: string) => a === "High inerrancy" && b === "Open Theism",
   },
 ] as const;

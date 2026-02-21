@@ -1,6 +1,6 @@
 import { SystemTier, TierId } from "@/lib/types";
 
-export const CANVAS_HEIGHT = 1100;
+export const CANVAS_HEIGHT = 850;
 export const FOUNDATIONAL_TIER_ID = "foundational_core";
 
 export type TierBand = {
@@ -32,9 +32,10 @@ function reindex(tiers: SystemTier[]) {
 
 export function defaultSystemTiers(): SystemTier[] {
   return [
-    { id: FOUNDATIONAL_TIER_ID, name: "Core Truths", order: 0, is_foundational: true },
-    { id: "tier_1", name: "Tier 2", order: 1, is_foundational: false },
-    { id: "tier_2", name: "Tier 3", order: 2, is_foundational: false },
+    { id: FOUNDATIONAL_TIER_ID, name: "Foundational Dogma", order: 0, is_foundational: true },
+    { id: "tier_1", name: "Official Doctrine", order: 1, is_foundational: false },
+    { id: "tier_2", name: "Theological Deduction", order: 2, is_foundational: false },
+    { id: "tier_3", name: "Personal Speculation", order: 3, is_foundational: false },
   ];
 }
 
@@ -53,12 +54,12 @@ export function normalizeSystemTiers(tiers: unknown): SystemTier[] {
 
   const foundationIdx = clean.findIndex((tier) => tier.id === FOUNDATIONAL_TIER_ID || tier.is_foundational);
   if (foundationIdx < 0) {
-    clean.unshift({ id: FOUNDATIONAL_TIER_ID, name: "Core Truths", is_foundational: true, order: 0 });
+    clean.unshift({ id: FOUNDATIONAL_TIER_ID, name: "Foundational Dogma", is_foundational: true, order: 0 });
   }
 
   const marked = clean.map((tier) =>
     tier.id === FOUNDATIONAL_TIER_ID
-      ? { ...tier, name: "Core Truths", is_foundational: true }
+      ? { ...tier, name: "Foundational Dogma", is_foundational: true }
       : { ...tier, is_foundational: false },
   );
 

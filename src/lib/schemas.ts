@@ -4,26 +4,10 @@ const tierIdSchema = z.string().min(1).max(80);
 
 const relationshipEnum = z.enum(["supports", "relies_upon", "contradicts", "qualifies"]);
 
-const s1Schema = z
-  .object({
-    penal_substitution: z.number().int().min(0).max(4),
-    moral_influence: z.number().int().min(0).max(4),
-    christus_victor: z.number().int().min(0).max(4),
-    ransom: z.number().int().min(0).max(4),
-    solidarity: z.number().int().min(0).max(4),
-  })
-  .superRefine((value, ctx) => {
-    const vals = Object.values(value);
-    if (new Set(vals).size !== vals.length) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "S1 ranks must be unique" });
-    }
-  });
-
 export const presuppositionAnswerSchema = z.union([
   z.object({ mode: z.literal("undecided") }),
   z.object({ mode: z.literal("not_foundational") }),
-  z.object({ mode: z.literal("position"), value: z.number().min(0).max(100) }),
-  z.object({ mode: z.literal("position"), value: s1Schema }),
+  z.object({ mode: z.literal("position"), value: z.string() }),
 ]);
 
 export const presuppositionsSchema = z.record(z.string(), presuppositionAnswerSchema);
@@ -87,25 +71,7 @@ export const createEdgeSchema = z.object({
   relationship_type: relationshipEnum,
 });
 
-export const validateNodeSchema = z.object({
+export const validateNodeRequestSchema = z.object({
   system_id: z.string().uuid(),
-  node: z.object({
-    id: z.string().uuid(),
-    title: z.string(),
-    description: z.string(),
-    notes: z.string(),
-    tier_id: tierIdSchema,
-  }),
-  neighbors: z.array(
-    z.object({
-      id: z.string().uuid(),
-      title: z.string(),
-      description: z.string(),
-      notes: z.string(),
-      tier_id: tierIdSchema,
-      relationship_type: relationshipEnum,
-      direction: z.enum(["incoming", "outgoing"]),
-    }),
-  ),
-  presuppositions: presuppositionsSchema,
+  node_id: z.string().uuid(),
 });

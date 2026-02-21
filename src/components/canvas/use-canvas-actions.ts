@@ -1,39 +1,8 @@
 import { useCallback } from "react";
-import { EdgeRow, NodeRow, SystemTier } from "@/lib/types";
+import { NodeRow, SystemTier } from "@/lib/types";
 import { addCustomTier, FOUNDATIONAL_TIER_ID, moveTierToIndex, normalizeSystemTiers, removeTopCustomTier, tierFromY } from "@/lib/tiers";
-import { useCanvasStore } from "@/lib/store";
+import { useCanvasStore, toFlowNodes, toFlowEdges } from "@/lib/store";
 import { Connection } from "reactflow";
-
-function toFlowNodes(rows: NodeRow[], tiers: SystemTier[]) {
-    return rows.map((node) => ({
-        id: node.id,
-        type: node.tier_id === FOUNDATIONAL_TIER_ID ? "foundation" : "doctrine",
-        position: { x: node.x_position, y: node.y_position },
-        draggable: node.tier_id !== FOUNDATIONAL_TIER_ID,
-        data: {
-            title: node.title,
-            description: node.description,
-            notes: node.notes,
-            tier_id: node.tier_id,
-            is_locked: node.is_locked,
-            confidence: node.confidence,
-            scripture_refs: node.scripture_refs,
-            tags: node.tags,
-            validation_status: node.validation_status,
-            validation_critique: node.validation_critique,
-        },
-    }));
-}
-
-function toFlowEdges(rows: EdgeRow[]) {
-    return rows.map((edge) => ({
-        id: edge.id,
-        source: edge.source_node_id,
-        target: edge.target_node_id,
-        label: edge.relationship_type,
-        data: { relationship_type: edge.relationship_type },
-    }));
-}
 
 export function useCanvasActions() {
     const store = useCanvasStore();
@@ -235,13 +204,15 @@ export function useCanvasActions() {
             return;
         }
         const impacted = store.nodes.filter((node) => node.data.tier_id === removed.removedTierId);
-        for (const node of impacted) {
-            await fetch(`/api/nodes/${node.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ tier_id: removed.targetTierId }),
-            });
-        }
+        await Promise.all(
+            impacted.map((node) =>
+                fetch(`/api/nodes/${node.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ tier_id: removed.targetTierId }),
+                })
+            )
+        );
         const ok = await persistTiers(removed.tiers);
         if (ok) await reloadGraph();
     }, [store, persistTiers, reloadGraph]);

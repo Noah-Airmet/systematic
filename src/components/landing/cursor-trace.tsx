@@ -99,8 +99,11 @@ export function CursorTrace() {
         // Apply Interaction Force
         let force = 0;
         if (distance < INTERACTION_RADIUS) {
+          // Prevent violent singularity spins by clamping the minimum distance used math
+          const clampedDistance = Math.max(distance, 30);
+
           // Inverse scaling so it pushes harder the closer it is
-          force = (INTERACTION_RADIUS - distance) / INTERACTION_RADIUS;
+          force = (INTERACTION_RADIUS - clampedDistance) / INTERACTION_RADIUS;
 
           // Normalize direction vector and apply force
           const angle = Math.atan2(dy, dx);
@@ -129,9 +132,18 @@ export function CursorTrace() {
         if (displacement > 0.5) {
           // Cap visual scaling
           const visualIntensity = Math.min(displacement / 25, 1);
-          size = 1.0 + (visualIntensity * 2.5);
+          size = 1.0 + (visualIntensity * 1.5);
           opacity = 0.15 + (visualIntensity * 0.7);
         }
+
+        // FADE OUT EFFECT: Smoothly hide the dot if the cursor is directly on top of it
+        // This prevents visual clutter right where the user is looking and stops the "spin" visual
+        let cursorMaskOpacity = 1;
+        if (distance < 50) {
+          cursorMaskOpacity = distance / 50; // Approches 0 as distance approaches 0
+        }
+
+        opacity *= cursorMaskOpacity;
 
         // Draw the point itself
         ctx.beginPath();

@@ -159,9 +159,38 @@ body {
   }
 }
 
+@keyframes edge-glow-pulse-subtle {
+  0% {
+    box-shadow:
+      inset 0 0 50px rgba(96, 165, 250, 0.08),
+      inset 0 0 20px rgba(167, 139, 250, 0.1),
+      inset 0 0 5px rgba(255, 255, 255, 0.02);
+  }
+
+  50% {
+    box-shadow:
+      inset 0 0 90px rgba(96, 165, 250, 0.18),
+      inset 0 0 35px rgba(167, 139, 250, 0.2),
+      inset 0 0 10px rgba(255, 255, 255, 0.08);
+  }
+
+  100% {
+    box-shadow:
+      inset 0 0 50px rgba(96, 165, 250, 0.08),
+      inset 0 0 20px rgba(167, 139, 250, 0.1),
+      inset 0 0 5px rgba(255, 255, 255, 0.02);
+  }
+}
+
 .ai-edge-glow {
   /* Dynamic blue/purple pulse */
   animation: edge-glow-pulse 5s ease-in-out infinite;
   border: 1px solid rgba(255, 255, 255, 0.05);
   /* The glow gives a nice rounded effect, let's round the corners somewhat if we want */
+}
+
+.ai-edge-glow-subtle {
+  /* Slower, less intense pulse */
+  animation: edge-glow-pulse-subtle 9s ease-in-out infinite;
+  border: 1px solid rgba(255, 255, 255, 0.03);
 }

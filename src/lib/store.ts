@@ -10,6 +10,7 @@ import {
     addEdge as rfAddEdge,
 } from "reactflow";
 import { EdgeRow, NodeRow, RelationshipType, SystemTier } from "./types";
+import { FOUNDATIONAL_TIER_ID } from "./tiers";
 
 export type CanvasNodeData = {
     title: string;
@@ -65,6 +66,37 @@ export type CanvasState = {
     addEdge: (edge: Edge) => void;
     removeEdge: (id: string) => void;
 };
+
+export function toFlowNodes(rows: NodeRow[], _tiers?: SystemTier[]): Node<CanvasNodeData>[] {
+    return rows.map((node) => ({
+        id: node.id,
+        type: node.tier_id === FOUNDATIONAL_TIER_ID ? "foundation" : "doctrine",
+        position: { x: node.x_position, y: node.y_position },
+        draggable: node.tier_id !== FOUNDATIONAL_TIER_ID,
+        data: {
+            title: node.title,
+            description: node.description,
+            notes: node.notes,
+            tier_id: node.tier_id,
+            is_locked: node.is_locked,
+            confidence: node.confidence,
+            scripture_refs: node.scripture_refs,
+            tags: node.tags,
+            validation_status: node.validation_status,
+            validation_critique: node.validation_critique,
+        },
+    }));
+}
+
+export function toFlowEdges(rows: EdgeRow[]): Edge[] {
+    return rows.map((edge) => ({
+        id: edge.id,
+        source: edge.source_node_id,
+        target: edge.target_node_id,
+        label: edge.relationship_type,
+        data: { relationship_type: edge.relationship_type },
+    }));
+}
 
 export const useCanvasStore = create<CanvasState>((set, get) => ({
     systemId: null,
