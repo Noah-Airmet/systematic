@@ -23,7 +23,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-function SortableTier({ tier, idx, isFoundation, store, actions }: { tier: SystemTier, idx: number, isFoundation: boolean, store: any, actions: ReturnType<typeof useCanvasActions> }) {
+function SortableTier({ tier, idx, isFoundation, store, actions }: { tier: SystemTier, idx: number, isFoundation: boolean, store: ReturnType<typeof useCanvasStore>, actions: ReturnType<typeof useCanvasActions> }) {
     const {
         attributes,
         listeners,

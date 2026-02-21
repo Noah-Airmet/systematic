@@ -2,150 +2,178 @@
 
 import { useEffect, useRef } from "react";
 
-type Point = { x: number; y: number; vx: number; vy: number };
+type Particle = {
+  ox: number; // Origin X
+  oy: number; // Origin Y
+  x: number;  // Current X
+  y: number;  // Current Y
+  vx: number; // Velocity X
+  vy: number; // Velocity Y
+};
 
 export function CursorTrace() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerRef = useRef({ x: -1000, y: -1000 });
 
-  // We'll maintain multiple trailing points that follow each other with spring physics
-  // This creates a smooth, slinky-like effect instead of a rigid jagged line
-  const NUM_POINTS = 24;
-  const pointsRef = useRef<Point[]>([]);
+  // We don't want to re-initialize particles on every render, just keep them in a ref
+  const particlesRef = useRef<Particle[]>([]);
+
+  // Grid spacing distance
+  const SPACING = 45;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: false }); // alpha false for performance if solid background
     if (!ctx) return;
 
-    // Initialize points off-screen
-    pointsRef.current = Array.from({ length: NUM_POINTS }, () => ({
-      x: -1000,
-      y: -1000,
-      vx: 0,
-      vy: 0,
-    }));
-
     let frame = 0;
+
+    // Configurable Physics
+    const INTERACTION_RADIUS = 250;
+    const REPULSION_FORCE = 0.6;
+    const SPRING = 0.08;
+    const FRICTION = 0.75;
+
+    const initParticles = () => {
+      const p = [];
+      const cols = Math.floor(canvas.width / SPACING) + 2;
+      const rows = Math.floor(canvas.height / SPACING) + 2;
+
+      const offsetX = (canvas.width - ((cols - 1) * SPACING)) / 2;
+      const offsetY = (canvas.height - ((rows - 1) * SPACING)) / 2;
+
+      for (let i = 0; i < cols; i++) {
+        for (let j = 0; j < rows; j++) {
+          const x = offsetX + i * SPACING;
+          const y = offsetY + j * SPACING;
+          p.push({
+            ox: x, oy: y,
+            x: x, y: y,
+            vx: 0, vy: 0
+          });
+        }
+      }
+      particlesRef.current = p;
+    };
 
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      initParticles();
     };
 
     const onMove = (event: MouseEvent) => {
-      // If this is the "first" move (points are offscreen), snap them instantly to the cursor
-      if (pointerRef.current.x === -1000) {
-        pointsRef.current.forEach(p => {
-          p.x = event.clientX;
-          p.y = event.clientY;
-        });
-      }
       pointerRef.current = { x: event.clientX, y: event.clientY };
+    };
+
+    const onLeave = () => {
+      pointerRef.current = { x: -1000, y: -1000 };
     };
 
     const render = () => {
       frame = requestAnimationFrame(render);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const points = pointsRef.current;
-      const { x: targetX, y: targetY } = pointerRef.current;
+      // Draw dark background directly to canvas
+      ctx.fillStyle = "#0A0A0C";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Don't render until they move the mouse
-      if (targetX === -1000) return;
+      const particles = particlesRef.current;
+      const { x: tX, y: tY } = pointerRef.current;
 
-      // Spring physics variables
-      const spring = 0.45;
-      const friction = 0.65;
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
 
-      // Update the head point to follow the actual cursor
-      const dx = targetX - points[0].x;
-      const dy = targetY - points[0].y;
+        let dx = 0;
+        let dy = 0;
+        let distance = Infinity;
 
-      points[0].vx += dx * spring;
-      points[0].vy += dy * spring;
-      points[0].vx *= friction;
-      points[0].vy *= friction;
-      points[0].x += points[0].vx;
-      points[0].y += points[0].vy;
+        // Calculate repulsion if mouse is on screen
+        if (tX !== -1000) {
+          dx = p.x - tX;
+          dy = p.y - tY;
+          distance = Math.sqrt(dx * dx + dy * dy);
+        }
 
-      // Update the rest of the body to follow the point ahead of it
-      for (let i = 1; i < NUM_POINTS; i++) {
-        const p = points[i];
-        const leader = points[i - 1];
+        // Apply Interaction Force
+        let force = 0;
+        if (distance < INTERACTION_RADIUS) {
+          // Inverse scaling so it pushes harder the closer it is
+          force = (INTERACTION_RADIUS - distance) / INTERACTION_RADIUS;
 
-        // Slower spring for the tail points gives that fluid techy drag
-        const pSpring = 0.45;
-        const pFriction = 0.45;
+          // Normalize direction vector and apply force
+          const angle = Math.atan2(dy, dx);
+          p.vx += Math.cos(angle) * force * REPULSION_FORCE * 15;
+          p.vy += Math.sin(angle) * force * REPULSION_FORCE * 15;
+        }
 
-        const pdx = leader.x - p.x;
-        const pdy = leader.y - p.y;
+        // Apply Spring Force (pulling back to origin)
+        p.vx += (p.ox - p.x) * SPRING;
+        p.vy += (p.oy - p.y) * SPRING;
 
-        p.vx += pdx * pSpring;
-        p.vy += pdy * pSpring;
-        p.vx *= pFriction;
-        p.vy *= pFriction;
+        // Apply Friction and Velocity
+        p.vx *= FRICTION;
+        p.vy *= FRICTION;
         p.x += p.vx;
         p.y += p.vy;
+
+        // Calculate visual aesthetics based on displacement and force
+        const displacement = Math.sqrt(Math.pow(p.x - p.ox, 2) + Math.pow(p.y - p.oy, 2));
+
+        // Base state is a tiny faint dot
+        let size = 1.0;
+        let opacity = 0.15;
+
+        // When displaced, grow larger and brighter to "pop out"
+        if (displacement > 0.5) {
+          // Cap visual scaling
+          const visualIntensity = Math.min(displacement / 25, 1);
+          size = 1.0 + (visualIntensity * 2.5);
+          opacity = 0.15 + (visualIntensity * 0.7);
+
+          // Draw a subtle connecting line back to origin for a 3D stretching effect
+          ctx.beginPath();
+          ctx.moveTo(p.ox, p.oy);
+          ctx.lineTo(p.x, p.y);
+          ctx.strokeStyle = `rgba(180, 200, 255, ${opacity * 0.3})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        // Draw the point itself
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+
+        // Tint the color slightly blue/accent when heavily interacted with
+        if (displacement > 10) {
+          ctx.fillStyle = `rgba(180, 210, 255, ${opacity})`;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = `rgba(180, 210, 255, ${opacity * 0.5})`;
+        } else {
+          ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+          ctx.shadowBlur = 0;
+        }
+
+        ctx.fill();
+        ctx.shadowBlur = 0; // reset
       }
-
-      // Render the trail - drawing multiple overlapping layered lines for a techy glowing effect
-
-      // Core glowing line
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < NUM_POINTS - 1; i++) {
-        // Use quadratic curves for mathematically smooth corners between the simulated points
-        const xc = (points[i].x + points[i + 1].x) / 2;
-        const yc = (points[i].y + points[i + 1].y) / 2;
-        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
-      }
-      ctx.lineTo(points[NUM_POINTS - 1].x, points[NUM_POINTS - 1].y);
-
-      // We'll stroke it a few times with different widths/opacities to create a "bloom" effect
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      // 1. Thick faint outer glow
-      ctx.lineWidth = 12;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
-      ctx.stroke();
-
-      // 2. Medium blurred glow
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-      ctx.stroke();
-
-      // 3. Sharp inner core line
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-      ctx.stroke();
-
-      // Finally, draw a glowing orb at the exact cursor position (head of the snake)
-      // This gives the feeling of a futuristic pointer
-      const orb = ctx.createRadialGradient(targetX, targetY, 0, targetX, targetY, 40);
-      orb.addColorStop(0, "rgba(255, 255, 255, 0.8)");
-      orb.addColorStop(0.1, "rgba(255, 255, 255, 0.2)");
-      orb.addColorStop(1, "rgba(255, 255, 255, 0)");
-      ctx.fillStyle = orb;
-      ctx.beginPath();
-      ctx.arc(targetX, targetY, 40, 0, Math.PI * 2);
-      ctx.fill();
     };
 
     resize();
     window.addEventListener("resize", resize);
     window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseleave", onLeave);
     render();
 
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseleave", onLeave);
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-0" />;
+  // Background must be behind the main layout but capture pointer events by sitting below UI
+  return <canvas ref={canvasRef} className="fixed inset-0 z-0 bg-[#0A0A0C]" />;
 }
