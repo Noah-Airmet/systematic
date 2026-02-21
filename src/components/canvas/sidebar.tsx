@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FOUNDATIONAL_TIER_ID } from "@/lib/tiers";
-import { useCanvasStore } from "@/lib/store";
+import { useCanvasStore, CanvasState } from "@/lib/store";
 import { SystemTier } from "@/lib/types";
 import { useCanvasActions } from "./use-canvas-actions";
 
@@ -23,7 +23,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-function SortableTier({ tier, idx, isFoundation, store, actions }: { tier: SystemTier, idx: number, isFoundation: boolean, store: ReturnType<typeof useCanvasStore>, actions: ReturnType<typeof useCanvasActions> }) {
+import { GripVertical } from "lucide-react";
+
+function SortableTier({ tier, idx, isFoundation, store, actions }: { tier: SystemTier, idx: number, isFoundation: boolean, store: CanvasState, actions: ReturnType<typeof useCanvasActions> }) {
     const {
         attributes,
         listeners,
@@ -43,13 +45,24 @@ function SortableTier({ tier, idx, isFoundation, store, actions }: { tier: Syste
         <div
             ref={setNodeRef}
             style={style}
-            className={`relative overflow-hidden rounded-md border p-2.5 transition-[border-color,background-color,box-shadow] duration-300 ${isDragging
+            className={`relative overflow-hidden rounded-md border p-2 transition-[border-color,background-color,box-shadow] duration-300 ${isDragging
                 ? 'border-accent ring-1 ring-accent shadow-glow bg-accent/5 opacity-80'
                 : 'border-white/5 bg-glass-strong hover:border-white/20'
-                } ${!isFoundation ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                }`}
         >
-            <div className="mb-2 flex items-center pr-2 gap-2" {...(isFoundation ? {} : listeners)} {...(isFoundation ? {} : attributes)}>
-                <span className="type-label text-accent/70 font-bold bg-accent/10 px-1.5 py-0.5 rounded touch-none flex-shrink-0">T{idx + 1}</span>
+            <div className="flex items-center gap-2">
+                <div
+                    className={`flex items-center justify-center p-1 rounded-md transition-colors ${!isFoundation ? 'cursor-grab active:cursor-grabbing hover:bg-white/10 text-muted/60 hover:text-foreground' : 'text-transparent'}`}
+                    {...(isFoundation ? {} : listeners)}
+                    {...(isFoundation ? {} : attributes)}
+                >
+                    <GripVertical size={14} />
+                </div>
+
+                <span className="type-label text-accent/70 font-bold bg-accent/10 px-1.5 py-0.5 rounded touch-none flex-shrink-0">
+                    T{idx + 1}
+                </span>
+
                 <Input
                     value={tier.name}
                     onChange={(e) =>
@@ -68,9 +81,11 @@ function SortableTier({ tier, idx, isFoundation, store, actions }: { tier: Syste
                     className="h-7 bg-transparent border-transparent px-1 focus:bg-black/20 focus:border-accent/50 text-[13px] tracking-wide font-medium placeholder:text-muted/50 transition-all z-10 w-full"
                 />
             </div>
-            <div className="type-small text-[10px] text-muted/60 absolute bottom-1 right-2 pointer-events-none">
-                {isFoundation ? "Pinned Base" : "Drag to reorder"}
-            </div>
+            {isFoundation && (
+                <div className="type-small text-[10px] text-muted/60 absolute bottom-1 right-2 pointer-events-none">
+                    Pinned Base
+                </div>
+            )}
         </div>
     );
 }
